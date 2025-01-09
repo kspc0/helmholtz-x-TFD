@@ -1,0 +1,30 @@
+# use this website to update this file on repository; YOU HAVE TO GO Helmholtz-x main folder!
+# https://stackoverflow.com/questions/48072655/django-settings-cpython-36-pyc-not-ignored-by-gitignore
+# this file ignores the files with the extensions below;
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+*.pyc
+*.egg-info/
+*.egg
+*.xdmf
+*.h5
+*.msh
+
+# Folders
+numerical_examples/
+2D-test-case_for_Karl/
+docs/
+helmholtz_x.egg-info/
+KornilovCase/01_base_ITA/
+KornilovCase/code-tests/
+KornilovCase/FTFMatrices/
+KornilovCase/HeatMapsMatrices/
+KornilovCase/InputFunctions/
+KornilovCase/Meshes/
+KornilovCase/Pictures/
+KornilovCase/PlotEigenvalues/
+KornilovCase/Results/
