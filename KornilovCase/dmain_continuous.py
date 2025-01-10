@@ -22,7 +22,7 @@ from helmholtz_x.flame_transfer_function import stateSpace # to define the flame
 from helmholtz_x.flame_matrices import DistributedFlameMatrix # to define the flame matrix for discrete Helm. EQU
 from helmholtz_x.eigensolvers import fixed_point_iteration, eps_solver, newtonSolver # to solve the system
 from helmholtz_x.dolfinx_utils import absolute # to get the absolute value of a function
-from helmholtz_x.shape_derivatives_utils import FFDRectangular, getMeshdata, nonaxisymmetric_derivatives_normalize # to define the FFD lattice and get mesh data
+from helmholtz_x.shape_derivatives_utils import FFDRectangular, getMeshdata, derivatives_normalize # to define the FFD lattice and get mesh data
 from helmholtz_x.shape_derivatives import shapeDerivativesFFDRect, ShapeDerivativesFFDRectFullBorder, ffd_displacement_vector_rect, ffd_displacement_vector_rect_full_border # to calculate shape derivatives
 
 # mark the processing time
@@ -177,6 +177,8 @@ xdmf_writer(path+"/InputFunctions/V_ffd", mesh, V_ffd)
 print("- calculating shape derivative")
 derivatives = ShapeDerivativesFFDRectFullBorder(Kornilov, physical_facet_tag, norm_vector, omega_dir, p_dir, p_adj, c, matrices, D)
 
+# Normalize shape derivative does not affect because there is just one value
+#derivatives_normalized = derivatives_normalize(derivatives)
 
 #--------------------------FINALIZING-----------------------------#
 print("\n")

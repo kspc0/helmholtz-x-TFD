@@ -203,7 +203,7 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
     normal = FacetNormal(geometry.mesh)
     # define a measure used for integrating over the mesh's boundary
     ds = Measure('ds', domain = geometry.mesh, subdomain_data = geometry.facet_tags)
-    print("geometry facet tags: ", geometry.facet_tags)
+    #print("geometry facet tags: ", geometry.facet_tags)
     # create the normalized adjoint conjugate solution
     p_adj_norm = normalize_adjoint(omega_dir, p_dir, p_adj, acousticMatrices, FlameMatrix)
     p_adj_conj = conjugate_function(p_adj_norm)
@@ -216,10 +216,10 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
     # calculate the local diplacement field V at the border
     V_ffd = ffd_displacement_vector_rect_full_border(geometry, physical_facet_tag, norm_vector, deg=1)
     # calculate the shape derivative of the control point
-    print("normal :",normal.ufl_shape)
-    print("integral of ds(physical_facet_tag) :",assemble_scalar(form(1*ds(physical_facet_tag))))
-    print("C = V*n", inner(V_ffd, normal))
-    shape_derivative_form = form(inner(V_ffd, normal) * G_neu * ds(physical_facet_tag)) #
+    #print("normal :",normal.ufl_shape)
+    #print("integral of ds(physical_facet_tag) :",assemble_scalar(form(1*ds(physical_facet_tag))))
+    #print("C = V*n", inner(V_ffd, normal))
+    shape_derivative_form = form(inner(V_ffd, normal) * G_neu * ds(physical_facet_tag))
     eig = assemble_scalar(shape_derivative_form)
     # store the solution in the array
     derivatives[1] = eig
@@ -257,7 +257,7 @@ def ffd_displacement_vector_rect_full_border(geometry, surface_physical_tag, nor
     dofs_Q = dofs_Q.reshape(-1,2)
 
     number_of_mesh_points_on_border = round(len(coords)/3) # for 3 dimensions
-     # list of values containing each node as element, calculated by the bernstein polynomials
+    # list of values containing each node as element, calculated by the bernstein polynomials
     # value = comb(FFDLattice.l-1,i)*np.power(1-s, FFDLattice.l-1-i)*np.power(s,i) * \
     #         comb(FFDLattice.m-1,j)*np.power(1-t, FFDLattice.m-1-j)*np.power(t,j)
     # equally distribute displacement vector on all mesh points to total sum up to 1

@@ -436,8 +436,8 @@ def newtonSolver(operators, D, init, nev, i, tol, maxiter, print_results=False):
         E = eps_solver(L, - C, 0, nev, two_sided=True, print_results=print_results)
         eig = E.getEigenvalue(i)
         #print("eig", eig)   
+        # normalize the eigenvectors
         omega_dir, p = normalize_eigenvector(operators.mesh, E, i, degree=1, which='right', print_eigs=False)
-
         omega_adj, p_adj = normalize_eigenvector(operators.mesh, E, i, degree=1, which='left', print_eigs=False)
 
         # convert into PETSc.Vec type

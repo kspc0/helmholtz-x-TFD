@@ -19,8 +19,11 @@ def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right',
     """
 
     A = obj.getOperators()[0]
+    # create vectors to store the eigenvector
     vr, vi = A.createVecs()
     
+    # check which type of eigenvalue problem there was PEP or EPS
+    # obtain the eigenvector and eigenvalue from the matrix
     if isinstance(obj, SLEPc.EPS):
         eig = obj.getEigenvalue(i)
         omega = np.sqrt(eig)
@@ -28,28 +31,34 @@ def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right',
             obj.getEigenvector(i, vr, vi)
         elif which == 'left':
             obj.getLeftEigenvector(i, vr, vi)
-    
     elif isinstance(obj, SLEPc.PEP):
         eig = obj.getEigenpair(i, vr, vi)
-        omega = eig 
+        omega = eig
 
+    # (bloch condition not used)
     if BlochRemapper:
         vr = matrix_vector(BlochRemapper,vr)
-            
+    
+    # usually matrices are not given as input parameter
     if matrices:
         V=matrices.V
+    # so we need to create a function space
     else:
         V = FunctionSpace(mesh, ("CG", degree))
 
+    # create a function to store the eigenvector
     p = Function(V)
-    FixSign(vr)
-    p.vector.setArray(vr.array)
+    FixSign(vr) # ensure consistent sign of the eigenvector
+    p.vector.setArray(vr.array) # set the eigenvector to the function from the matrix
     p.x.scatter_forward()
+    # calculate measure of the function with sqrt(integ(p^2)dx=1)
     meas = np.sqrt(mesh.comm.allreduce(assemble_scalar(form(p*p*dx)), op=MPI.SUM))
     
     temp = vr.array
+    # normalize by dividing by the measure
     temp = temp/meas
     
+    # only if absolute is true, we normalize the eigenvector by the maximum value
     if absolute:
         abs_temp = abs(temp)
         max_temp = mesh.comm.allreduce(np.amax(abs_temp), op=MPI.MAX)
@@ -59,6 +68,7 @@ def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right',
     p_normalized.vector.setArray(temp)
     p_normalized.x.scatter_forward()
 
+    # print the eigenvalue and eigenfrequency
     if MPI.COMM_WORLD.rank == 0 and print_eigs:
         print(f"Eigenvalue = {omega:.3f} | \033[1mEigenfrequency= {omega/(2*np.pi):.3f}\033[0m")
         # add a print for squareroot of eigenvalue:
@@ -167,6 +177,7 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
                      matrices.C * (2 * omega_dir) -
                      D.get_derivative(omega_dir))
 
+    # measure of the adjoint eigenfunction
     meas = vector_matrix_vector(p_adj_vec, dL_domega, p_dir_vec)
 
     p_adj_vec = multiply(p_adj_vec, 1 / meas)
