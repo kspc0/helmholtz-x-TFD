@@ -53,7 +53,6 @@ def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right',
     p.x.scatter_forward()
     # calculate measure of the function with sqrt(integ(p^2)dx=1)
     meas = np.sqrt(mesh.comm.allreduce(assemble_scalar(form(p*p*dx)), op=MPI.SUM))
-    
     temp = vr.array
     # normalize by dividing by the measure
     temp = temp/meas
@@ -182,7 +181,7 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
 
     p_adj_vec = multiply(p_adj_vec, 1 / meas)
 
-    p_adj1 = p_adj
+    p_adj1 = p_adj.copy()  # problem of same nameK of object?? original this code said p_adj1 = p_adj, but then p_adj was modified
     p_adj1.name = "p_adj"
     p_adj1.vector.setArray(p_adj_vec.getArray())
     p_adj1.x.scatter_forward()

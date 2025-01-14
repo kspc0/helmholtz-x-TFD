@@ -24,7 +24,7 @@ c_amb = sqrt(gamma*p_amb/rho_amb)  # [m/s] ambient speed of sound 343,11426662
 ### density, temperature and speed of sound
 # input and output density
 rho_u = rho_amb  # [kg/m^3] -> 1,189187904 ~1.2
-rho_d = 0.17  # [kg/m^3]
+rho_d = rho_amb #0.17 inhomogenous case  # [kg/m^3]
 # input and output temperature
 T_in = p_amb/(r_gas*rho_u)  # [K] -> 293
 T_out = p_amb/(r_gas*rho_d)  # [K] -> 2049
@@ -141,6 +141,15 @@ def gaussianFunctionHplane(mesh, x_f, a_f, amplitude, sig,degree=1):
     ndim = mesh.geometry.dim # comment this to 1 for Kornilov Case because its 2D and we want 1D gauss functions
     w.interpolate(lambda x: gaussianHplane(x[0],x_f,a_f,ndim))
     w = normalize(w)
+    return w
+
+def gaussianFunctionHplaneHomogenous(mesh, x_f, a_f, amplitude, sig,degree=1):
+    V = FunctionSpace(mesh, ("CG", degree))
+    w = Function(V)
+    x_f = x_f[0]
+    x_f = x_f[0]
+    ndim = mesh.geometry.dim # comment this to 1 for Kornilov Case because its 2D and we want 1D gauss functions
+    w.interpolate(lambda x: np.zeros_like(x[0]))
     return w
 
 # point function
@@ -307,8 +316,8 @@ if __name__ == '__main__':
     # T_func = temperature_step_gauss(mesh, x_f,T_in, T_out, amplitude, sig) # step temperature (modified to Kornilov)
 
     # create the functions with plane flame
-    h_func = gaussianFunctionHplane(mesh, x_f, a_f, amplitude, sig) # gauss heat release rate (modified to Kornilov)
-    w_func = gaussianFunctionHplane(mesh, x_r, a_r, amplitude, sig) # gauss measurement (original from HelmX)
+    h_func = gaussianFunctionHplaneHomogenous(mesh, x_f, a_f, amplitude, sig) # gauss heat release rate (modified to Kornilov)
+    w_func = gaussianFunctionHplaneHomogenous(mesh, x_r, a_r, amplitude, sig) # gauss measurement (original from HelmX)
     rho_func = rhoFunctionPlane(mesh, x_f, a_f, rho_d, rho_u, amplitude, sig, limit) # tanh density
     c_func = c_step_gauss_plane(mesh, x_f, c_in, c_out, amplitude, sig) # step sound speed (modified to Kornilov)
     T_func_temp = temperature_step_gauss_plane(mesh, x_f, T_in, T_out, amplitude, sig) # step temperature (modified to Kornilov)

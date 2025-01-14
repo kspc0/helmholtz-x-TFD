@@ -1,5 +1,5 @@
 '''
-objective: calculate shape derivative for a simple duct using continuous adjoint approach
+objective: calculate shape derivative for a simple duct using discete adjoint approach
 with full border displacement of the inlet
 '''
 
@@ -32,6 +32,7 @@ start_time = datetime.datetime.now()
 path = os.path.dirname(os.path.abspath(__file__))
 mesh_dir = "/Meshes" # folder of mesh file
 mesh_name = "/KornilovMesh" # name of the mesh file
+perturbed_mesh_name = "/KornilovPerturbedMesh" # name of the perturbed mesh file
 results_dir = "/Results" # folder for saving results
 eigenvalues_dir = "/PlotEigenvalues" # folder for saving eigenvalues
 
@@ -159,34 +160,95 @@ xdmf_writer(path+results_dir+"/p_adj", mesh, p_adj)
 xdmf_writer(path+results_dir+"/p_adj_abs", mesh, absolute(p_adj))
 
 
+#-------------------PERTURBING THE MESH---------------------------#
+print("\n--- PERTURBING THE MESH ---")
+# for discrete shape derivatives, the mesh needs to be perturbed
+# read tags and coordinates of the mesh
+node_tags, node_coords, _ = gmsh.model.mesh.getNodes()
+# assign x,y,z coordinates to separate arrays
+xcoords = node_coords[0::3] # get x-coordinates
+ycoords = node_coords[1::3] # get y-coordinates
+zcoords = node_coords[2::3] # get z-coordinates
+# create list to store the indices of the plenum nodes
+# perturb the chosen mesh points slightly in y direction
+perturbation = 0.01 # perturbation distance
+# perturbation is percent based on the y-coordinate
+xcoords += xcoords * perturbation
+# update node y coordinates in mesh from the perturbed points and the unperturbed original points
+node_coords[0::3] = xcoords
+# update node positions
+for tag, new_coords in zip(node_tags, node_coords.reshape(-1,3)):
+    gmsh.model.mesh.setNode(tag, new_coords, [])
+# update point positions 
+gmsh.model.setCoordinates(p3, perturbation + 1, 0.1, 0)
+gmsh.model.setCoordinates(p4, perturbation + 1, 0, 0)
+# optionally launch GUI to see the results
+# if '-nopopup' not in sys.argv:
+#    gmsh.fltk.run()
+# save perturbed mesh data in /Meshes directory
+gmsh.write("{}.msh".format(path+mesh_dir+perturbed_mesh_name)) # save as .msh file
+write_xdmf_mesh(path+mesh_dir+perturbed_mesh_name,dimension=2) # save as .xdmf file
+
+
+#--------------------REASSEMBLE PASSIVE MATRICES-----------------#
+print("\n--- REASSEMBLING PASSIVE MATRICES ---")
+# recalculate the acoustic matrices for the perturbed mesh
+perturbed_Kornilov = XDMFReader(path+mesh_dir+perturbed_mesh_name)
+perturbed_mesh, perturbed_subdomains, perturbed_facet_tags = perturbed_Kornilov.getAll() # mesh, domains and tags
+perturbed_Kornilov.getInfo()
+
+# define temperature gradient function in geometry
+T = dparams.temperature_step_gauss_plane(perturbed_mesh, dparams.x_f, dparams.T_in, dparams.T_in, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
+# calculate the sound speed function from temperature
+c = sound_speed(T)
+# calculate the passive acoustic matrices
+perturbed_matrices = AcousticMatrices(perturbed_mesh, perturbed_facet_tags, boundary_conditions_hom, T , degree = degree) # very large, sparse matrices
+
+
+#-------------------REASSEMBLE FLAME TRANSFER MATRIX----------------#
+print("\n--- REASSEMBLING FLAME MATRIX ---")
+# using statespace model to define the flame transfer function
+FTF = stateSpace(dparams.S1, dparams.s2, dparams.s3, dparams.s4)
+# define input functions for the flame matrix
+# density function:
+rho = dparams.rhoFunctionPlane(perturbed_mesh, dparams.x_f, dparams.a_f, dparams.rho_d, dparams.rho_u, dparams.amplitude, dparams.sig, dparams.limit)
+# measurement function:
+w = dparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
+# heat release rate function:
+h = dparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
+# calculate the flame matrix
+D = DistributedFlameMatrix(perturbed_mesh, w, h, rho, T, dparams.q_0, dparams.u_b, FTF, degree=degree, gamma=dparams.gamma)
+
+
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
 print("\n--- CALCULATING SHAPE DERIVATIVES ---")
-# compute omega' for each control point
-# 1 for inlet
-# 2 for outlet
-physical_facet_tag_inlet = 1 # tag of the wall to be displaced
-physical_facet_tag_outlet = 2 # tag of the wall to be displaced
-# [1,0] for inlet
-# [-1,0] for outlet
-norm_vector_inlet = [1,0] # normal vector of the wall to be displaced
-norm_vector_outlet = [-1,0] # normal vector of the wall to be displaced
+print("- calculate perturbed matrices")
+diff_A = perturbed_matrices.A - matrices.A
+diff_C = perturbed_matrices.C - matrices.C
+print("- Shape of diff_A:", diff_A.getSize())
+print("- Shape of diff_C:", diff_C.getSize())
 
-# visualize example displacement field for full displaced border
-V_ffd = ffd_displacement_vector_rect_full_border(Kornilov, physical_facet_tag_inlet, norm_vector_inlet, deg=1)
-xdmf_writer(path+"/InputFunctions/V_ffd", mesh, V_ffd)
+print("- calculate shape derivative")
+# using formula of numeric shape derivative
+# split in different parts because calculation is too long
+print("- numerator addition of matrices...")
+numerator = np.dot(np.dot(p_adj.vector, (diff_A + omega_dir**2 * diff_C)), p_dir.vector)
+# assemble flame matrix
+D.assemble_submatrices('direct') # assemble direct flame matrix
+print("- denominator...")
+denominator = np.dot(np.dot(p_adj.vector, (-2*omega_dir*matrices.C + D.get_derivative(omega_dir))), p_dir.vector)
+print("- total shape derivative...")
+derivative = numerator[0,0] / denominator[0,0]
 
-# calculate the shape derivatives for each control point
-print("- calculating shape derivative")
-derivatives_inlet = ShapeDerivativesFFDRectFullBorder(Kornilov, physical_facet_tag_inlet, norm_vector_inlet, omega_dir, p_dir, p_adj, c, matrices, D)
-derivatives_outlet = ShapeDerivativesFFDRectFullBorder(Kornilov, physical_facet_tag_outlet, norm_vector_outlet, omega_dir, p_dir, p_adj, c, matrices, D)
 # Normalize shape derivative does not affect because there is just one value
 #derivatives_normalized = derivatives_normalize(derivatives)
+
 
 #--------------------------FINALIZING-----------------------------#
 print("\n")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz")
 print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi)} + {round(target.imag/2/np.pi)}j Hz")
-print(f"---> \033[1mShape Derivative =\033[0m {derivatives_inlet} {derivatives_outlet}")
+print(f"---> \033[1mShape Derivative =\033[0m {derivative}")
 # close the gmsh session which was required to run for calculating shape derivatives
 gmsh.finalize()
 # mark the processing time:

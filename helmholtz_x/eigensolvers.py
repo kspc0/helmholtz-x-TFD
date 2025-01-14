@@ -435,9 +435,11 @@ def newtonSolver(operators, D, init, nev, i, tol, maxiter, print_results=False):
         # set the target to zero (shift-and-invert)
         E = eps_solver(L, - C, 0, nev, two_sided=True, print_results=print_results)
         eig = E.getEigenvalue(i)
-        #print("eig", eig)   
+        # print("eig", eig)   
         # normalize the eigenvectors
+        # note that "p" is either direct or adjoint, depending on which matrix D was assembled earlier
         omega_dir, p = normalize_eigenvector(operators.mesh, E, i, degree=1, which='right', print_eigs=False)
+        # however a second ajoint is required to calculate the convergence of the eigenvalue
         omega_adj, p_adj = normalize_eigenvector(operators.mesh, E, i, degree=1, which='left', print_eigs=False)
 
         # convert into PETSc.Vec type
@@ -464,4 +466,4 @@ def newtonSolver(operators, D, init, nev, i, tol, maxiter, print_results=False):
 
         del E
 
-    return omega[k], p#, real_converge_route, imag_converge_route
+    return omega[k], p #, real_converge_route, imag_converge_route

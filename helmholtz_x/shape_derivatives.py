@@ -3,7 +3,7 @@ from .eigenvectors import normalize_adjoint
 from .dolfinx_utils import unroll_dofmap
 from dolfinx.fem import form, locate_dofs_topological, VectorFunctionSpace, Function, FunctionSpace
 from dolfinx.fem.assemble import assemble_scalar
-from ufl import  FacetNormal, grad, inner, Measure, div
+from ufl import  FacetNormal, grad, inner, Measure, div, diff, dot
 from helmholtz_x.io_utils import XDMFReader,xdmf_writer
 from math import comb
 from dolfinx.io import XDMFFile
@@ -198,27 +198,53 @@ def ffd_displacement_vector_rect(geometry, FFDLattice, surface_physical_tag, i, 
 
 
 
+
+
+
+
+
+
 def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector, omega_dir, p_dir, p_adj, c, acousticMatrices, FlameMatrix):
     # find the outward normal vector on the geometry outlines
     normal = FacetNormal(geometry.mesh)
     # define a measure used for integrating over the mesh's boundary
     ds = Measure('ds', domain = geometry.mesh, subdomain_data = geometry.facet_tags)
     #print("geometry facet tags: ", geometry.facet_tags)
-    # create the normalized adjoint conjugate solution
+    print("DS===", assemble_scalar(form(1*ds(physical_facet_tag))))
+
+    # we need to create the normalized adjoint as from the derivative of the eigenvalue
     p_adj_norm = normalize_adjoint(omega_dir, p_dir, p_adj, acousticMatrices, FlameMatrix)
     p_adj_conj = conjugate_function(p_adj_norm)
 
     # calcualte the shape gradient G (scalar) for the geometry
-    G_neu = div(p_adj_conj * c**2 * grad(p_dir))
+    if physical_facet_tag == 1:
+        print("- Neumann Shape Gradient")
+        G_neu = div(p_adj_conj * c**2 * grad(p_dir)) # for Neumann
+        #G_neu = p_adj_conj *c**2 * div(grad(p_dir)) # for Neumann alternative form
+    elif physical_facet_tag == 2:
+        print("- Dirichlet Shape Gradient")
+        G_neu = c**2 * dot(grad(p_adj_conj), normal) * dot(grad(p_dir), normal) # for Dirichlet
+        #G_neu = c**2 * diff(p_adj_conj, normal) * diff(p_dir, normal) # for Dirichlet
+    else:
+        print("Error - shape gradient needs definition of according boundary")
+
+    print("type of Gradient object: ",type(G_neu))  
 
     derivatives = {}
     print("- shape derivatives of border")
     # calculate the local diplacement field V at the border
     V_ffd = ffd_displacement_vector_rect_full_border(geometry, physical_facet_tag, norm_vector, deg=1)
     # calculate the shape derivative of the control point
-    #print("normal :",normal.ufl_shape)
-    #print("integral of ds(physical_facet_tag) :",assemble_scalar(form(1*ds(physical_facet_tag))))
-    #print("C = V*n", inner(V_ffd, normal))
+    print("normal :",normal.ufl_shape)
+    print("integral of ds(physical_facet_tag) :", assemble_scalar(form(1*ds(physical_facet_tag))))
+    print(inner(V_ffd, normal))
+    print("V_ffd values:", len(V_ffd.vector.array))
+    # Integrate inner(V_ffd, normal) over the domain
+    V_ffd_normal_form = form(inner(V_ffd, normal) * ds(physical_facet_tag))
+    V_ffd_normal_value = assemble_scalar(V_ffd_normal_form)
+    print("Integral of inner(V_ffd, normal) over the domain:", V_ffd_normal_value)
+
+    # calculate the shape derivative of the border
     shape_derivative_form = form(inner(V_ffd, normal) * G_neu * ds(physical_facet_tag))
     eig = assemble_scalar(shape_derivative_form)
     # store the solution in the array
