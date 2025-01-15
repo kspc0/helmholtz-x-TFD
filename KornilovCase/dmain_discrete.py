@@ -90,7 +90,7 @@ boundary_conditions_hom = {1:  {'Neumann'}, # inlet
                            3:  {'Neumann'}, # upper wall
                            4:  {'Neumann'}} # lower wall
 # set the polynomial degree of the base function of the function space
-degree = 1 # the higher the degree, the longer the calulation takes but the more precise it is
+degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
 # define temperature gradient function in geometrynodenodenodennodeode
 T = dparams.temperature_step_gauss_plane(mesh, dparams.x_f, dparams.T_in, dparams.T_in, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
@@ -118,7 +118,7 @@ D = DistributedFlameMatrix(mesh, w, h, rho, T, dparams.q_0, dparams.u_b, FTF, de
 print("\n--- STARTING NEWTON METHOD ---")
 # set the target (expected angular frequency of the system)
 # unit of target: ([Hz])*2*pi = [rad/s] 
-frequ = 150 # 6000 Hz
+frequ = 100 # 6000 Hz
 target = (frequ)*2*np.pi # 6000 Hz
 # LRF:   GrowthRate + Frequ*j                   Re(w) + Im(w)
 # HelmX: Frequ + GrowthRate*j                   Im(w) - Re(w)
@@ -133,13 +133,13 @@ try:
     print("\n- DIRECT PROBLEM -")
     D.assemble_submatrices('direct') # assemble direct flame matrix
     # calculate the eigenvalues and eigenvectors
-    omega_dir, p_dir = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-1, maxiter=70, print_results= False)
+    omega_dir, p_dir = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-1,degree=degree, maxiter=70, print_results= False)
     print("- omega_dir:", omega_dir)
     # adjoint problem
     print("\n- ADJOINT PROBLEM -")
     D.assemble_submatrices('adjoint') # assemble adjoint flame matrix
     # calculate the eigenvalues and eigenvectors
-    omega_adj, p_adj = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-1, maxiter=70, print_results= False)
+    omega_adj, p_adj = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-1,degree=degree, maxiter=70, print_results= False)
     print("- omega_adj:", omega_adj)
 except IndexError:
     print("XXX--IndexError--XXX") # convergence of target failed in given range of iterations and tolerance
@@ -232,16 +232,34 @@ print("- calculate shape derivative")
 # using formula of numeric shape derivative
 # split in different parts because calculation is too long
 print("- numerator addition of matrices...")
-numerator = np.dot(np.dot(p_adj.vector, (diff_A + omega_dir**2 * diff_C)), p_dir.vector)
+Mat_n = diff_A + omega_dir**2 * diff_C
+y = PETSc.Vec().createSeq(Mat_n.getSize()[0])
+Mat_n.mult(p_dir.vector, y)
+# conjugate vector before dot product
+y = np.conj(y.getArray())
+conjugated_y = PETSc.Vec().createSeq(Mat_n.getSize()[0])
+conjugated_y.setValues(range(Mat_n.getSize()[0]), y)
+conjugated_y.assemble()
+# dot product
+numerator = p_adj.vector.dot(conjugated_y)
+
+#numerator = np.dot(np.dot(p_adj.vector, (diff_A + omega_dir**2 * diff_C)), p_dir.vector)
 # assemble flame matrix
 D.assemble_submatrices('direct') # assemble direct flame matrix
 print("- denominator...")
-denominator = np.dot(np.dot(p_adj.vector, (-2*omega_dir*matrices.C + D.get_derivative(omega_dir))), p_dir.vector)
+Mat_d = -2*omega_dir*matrices.C + D.get_derivative(omega_dir)
+z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
+Mat_d.mult(p_dir.vector, z)
+# conjugate vector before dot product
+z = np.conj(z.getArray())
+conjugated_z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
+conjugated_z.setValues(range(Mat_d.getSize()[0]), z)
+conjugated_z.assemble()
+# dot product
+denominator = p_adj.vector.dot(conjugated_z)
+#denominator = np.dot(np.dot(p_adj.vector, (-2*omega_dir*matrices.C + D.get_derivative(omega_dir))), p_dir.vector)
 print("- total shape derivative...")
-derivative = numerator[0,0] / denominator[0,0]
-
-# Normalize shape derivative does not affect because there is just one value
-#derivatives_normalized = derivatives_normalize(derivatives)
+derivative = numerator / denominator
 
 
 #--------------------------FINALIZING-----------------------------#

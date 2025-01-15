@@ -223,12 +223,12 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
         #G_neu = p_adj_conj *c**2 * div(grad(p_dir)) # for Neumann alternative form
     elif physical_facet_tag == 2:
         print("- Dirichlet Shape Gradient")
-        G_neu = c**2 * dot(grad(p_adj_conj), normal) * dot(grad(p_dir), normal) # for Dirichlet
+        G_neu = - c**2 * dot(grad(p_adj_conj), normal) * dot(grad(p_dir), normal) # for Dirichlet
         #G_neu = c**2 * diff(p_adj_conj, normal) * diff(p_dir, normal) # for Dirichlet
     else:
         print("Error - shape gradient needs definition of according boundary")
 
-    print("type of Gradient object: ",type(G_neu))  
+    # print("type of Gradient object: ",type(G_neu))  
 
     derivatives = {}
     print("- shape derivatives of border")
@@ -240,9 +240,9 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
     #print(inner(V_ffd, normal))
     #print("V_ffd values:", len(V_ffd.vector.array))
     # Integrate inner(V_ffd, normal) over the domain
-    V_ffd_normal_form = form(inner(V_ffd, normal) * ds(physical_facet_tag))
-    V_ffd_normal_value = assemble_scalar(V_ffd_normal_form)
-    print("Integral of inner(V_ffd, normal) over the domain:", V_ffd_normal_value)
+    #V_ffd_normal_form = form(inner(V_ffd, normal) * ds(physical_facet_tag))
+    #V_ffd_normal_value = assemble_scalar(V_ffd_normal_form)
+    # print("Integral of inner(V_ffd, normal) over the domain:", V_ffd_normal_value)
 
     # calculate the shape derivative of the border
     shape_derivative_form = form(inner(V_ffd, normal) * G_neu * ds(physical_facet_tag))

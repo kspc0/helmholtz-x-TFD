@@ -50,8 +50,8 @@ mesh_resolution = 0.01 # specify mesh resolution
 # locate the points of the 2D geometry: [m]
 p1 = gmsh.model.geo.addPoint(0, 0, 0, mesh_resolution)  
 p2 = gmsh.model.geo.addPoint(0, 0.1, 0, mesh_resolution) # 0.1m high
-p3 = gmsh.model.geo.addPoint(0.6, 0.1, 0, mesh_resolution) # 1m long
-p4 = gmsh.model.geo.addPoint(0.6, 0, 0, mesh_resolution)
+p3 = gmsh.model.geo.addPoint(1, 0.1, 0, mesh_resolution) # 1m long
+p4 = gmsh.model.geo.addPoint(1, 0, 0, mesh_resolution)
 # create outlines by connecting points
 l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
 l2 = gmsh.model.geo.addLine(p2, p3) # upper wall
@@ -95,7 +95,7 @@ boundary_conditions_hom = {1:  {'Neumann'}, # inlet
                            3:  {'Neumann'}, # upper wall
                            4:  {'Neumann'}} # lower wall
 # set the polynomial degree of the base function of the function space
-degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
+degree = 3 # the higher the degree, the longer the calulation takes but the more precise it is
 # define temperature gradient function in geometry
 T = dparams.temperature_step_gauss_plane(mesh, dparams.x_f, dparams.T_in, dparams.T_in, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
@@ -192,8 +192,8 @@ physical_facet_tag_inlet = 1 # tag of the wall to be displaced
 physical_facet_tag_outlet = 2 # tag of the wall to be displaced
 # [1,0] for inlet
 # [-1,0] for outlet
-norm_vector_inlet = [1,0] # normal vector of the wall to be displaced
-norm_vector_outlet = [-1,0] # normal vector of the wall to be displaced
+norm_vector_inlet = [-1,0] # normal outside vector of the wall to be displaced
+norm_vector_outlet = [1,0] # normal outside vector of the wall to be displaced
 
 # visualize example displacement field for full displaced border
 V_ffd = ffd_displacement_vector_rect_full_border(Kornilov, physical_facet_tag_inlet, norm_vector_inlet, deg=1)
