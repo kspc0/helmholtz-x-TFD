@@ -11,9 +11,15 @@ import gmsh
 import numpy as np
 from mpi4py import MPI
 from petsc4py import PETSc
+from dolfinx import fem
 
 # Parameters of the problem
 import dparams
+# dolfin and ufl packages
+from dolfinx.fem import Function, FunctionSpace
+from dolfinx.fem.petsc import LinearProblem
+from dolfinx.mesh import locate_entities_boundary
+from ufl import div, grad, dx, inner, TestFunction, TrialFunction
 # HelmholtzX utilities
 from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh # to write mesh data as files
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
@@ -40,12 +46,12 @@ eigenvalues_dir = "/PlotEigenvalues" # folder for saving eigenvalues
 print("\n--- CREATING MESH ---")
 gmsh.initialize() # start the gmsh session
 gmsh.model.add("KornilovCase") # add the model name
-mesh_resolution = 0.01#0.2e-3 # specify mesh resolution
+mesh_resolution = 0.01 # specify mesh resolution
 # locate the points of the 2D geometry: [m]
 p1 = gmsh.model.geo.addPoint(0, 0, 0, mesh_resolution)  
-p2 = gmsh.model.geo.addPoint(0, 0.1, 0, mesh_resolution)
-p3 = gmsh.model.geo.addPoint(1, 0.1, 0, mesh_resolution)
-p4 = gmsh.model.geo.addPoint(1, 0, 0, mesh_resolution)
+p2 = gmsh.model.geo.addPoint(0, 0.1, 0, mesh_resolution) # 0.1m high
+p3 = gmsh.model.geo.addPoint(0.6, 0.1, 0, mesh_resolution) # 1m long
+p4 = gmsh.model.geo.addPoint(0.6, 0, 0, mesh_resolution)
 # create outlines by connecting points
 l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
 l2 = gmsh.model.geo.addLine(p2, p3) # upper wall
@@ -89,8 +95,8 @@ boundary_conditions_hom = {1:  {'Neumann'}, # inlet
                            3:  {'Neumann'}, # upper wall
                            4:  {'Neumann'}} # lower wall
 # set the polynomial degree of the base function of the function space
-degree = 1 # the higher the degree, the longer the calulation takes but the more precise it is
-# define temperature gradient function in geometrynodenodenodennodeode
+degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
+# define temperature gradient function in geometry
 T = dparams.temperature_step_gauss_plane(mesh, dparams.x_f, dparams.T_in, dparams.T_in, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
 c = sound_speed(T)
@@ -132,13 +138,13 @@ try:
     print("\n- DIRECT PROBLEM -")
     D.assemble_submatrices('direct') # assemble direct flame matrix
     # calculate the eigenvalues and eigenvectors
-    omega_dir, p_dir = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-1, maxiter=70, print_results= False)
+    omega_dir, p_dir = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-1,degree=degree, maxiter=70, print_results= False)
     print("- omega_dir:", omega_dir)
     # adjoint problem
     print("\n- ADJOINT PROBLEM -")
     D.assemble_submatrices('adjoint') # assemble adjoint flame matrix
     # calculate the eigenvalues and eigenvectors
-    omega_adj, p_adj = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-1, maxiter=70, print_results= False)
+    omega_adj, p_adj = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-1,degree=degree, maxiter=70, print_results= False)
     print("- omega_adj:", omega_adj)
 except IndexError:
     print("XXX--IndexError--XXX") # convergence of target failed in given range of iterations and tolerance
@@ -157,6 +163,24 @@ xdmf_writer(path+results_dir+"/p_dir", mesh, p_dir) # as xdmf file for paraview 
 xdmf_writer(path+results_dir+"/p_dir_abs", mesh, absolute(p_dir)) # also save the absolute pressure distribution
 xdmf_writer(path+results_dir+"/p_adj", mesh, p_adj)
 xdmf_writer(path+results_dir+"/p_adj_abs", mesh, absolute(p_adj))
+
+
+# print("\n--- CALCULATING LAPLACIAN OF p_dir ---")
+# # Define function space for Laplacian calculation
+# V = FunctionSpace(mesh, ("CG", degree))
+# # Define the Laplacian operator
+# expre = div(grad(p_dir))
+# # Project the Laplacian onto the function space
+# laplacian_p_dir = Function(V)
+# # Variational problem
+# u = TrialFunction(V)
+# v = TestFunction(V)
+# a = inner(u, v) * dx
+# L = inner(expre, v) * dx
+# # Solve projection
+# problem = LinearProblem(a, L, u=laplacian_p_dir)
+# laplacian = problem.solve()
+# xdmf_writer(path+results_dir+"/laplacian_p_dir", mesh, laplacian)
 
 
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
@@ -181,6 +205,7 @@ derivatives_inlet = ShapeDerivativesFFDRectFullBorder(Kornilov, physical_facet_t
 derivatives_outlet = ShapeDerivativesFFDRectFullBorder(Kornilov, physical_facet_tag_outlet, norm_vector_outlet, omega_dir, p_dir, p_adj, c, matrices, D)
 # Normalize shape derivative does not affect because there is just one value
 #derivatives_normalized = derivatives_normalize(derivatives)
+
 
 #--------------------------FINALIZING-----------------------------#
 print("\n")

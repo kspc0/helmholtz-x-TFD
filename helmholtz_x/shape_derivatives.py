@@ -210,7 +210,7 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
     # define a measure used for integrating over the mesh's boundary
     ds = Measure('ds', domain = geometry.mesh, subdomain_data = geometry.facet_tags)
     #print("geometry facet tags: ", geometry.facet_tags)
-    print("DS===", assemble_scalar(form(1*ds(physical_facet_tag))))
+    #print("ds=", assemble_scalar(form(1*ds(physical_facet_tag))))
 
     # we need to create the normalized adjoint as from the derivative of the eigenvalue
     p_adj_norm = normalize_adjoint(omega_dir, p_dir, p_adj, acousticMatrices, FlameMatrix)
@@ -235,10 +235,10 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
     # calculate the local diplacement field V at the border
     V_ffd = ffd_displacement_vector_rect_full_border(geometry, physical_facet_tag, norm_vector, deg=1)
     # calculate the shape derivative of the control point
-    print("normal :",normal.ufl_shape)
-    print("integral of ds(physical_facet_tag) :", assemble_scalar(form(1*ds(physical_facet_tag))))
-    print(inner(V_ffd, normal))
-    print("V_ffd values:", len(V_ffd.vector.array))
+    #print("normal :",normal.ufl_shape)
+    #print("integral of ds(physical_facet_tag) :", assemble_scalar(form(1*ds(physical_facet_tag))))
+    #print(inner(V_ffd, normal))
+    #print("V_ffd values:", len(V_ffd.vector.array))
     # Integrate inner(V_ffd, normal) over the domain
     V_ffd_normal_form = form(inner(V_ffd, normal) * ds(physical_facet_tag))
     V_ffd_normal_value = assemble_scalar(V_ffd_normal_form)

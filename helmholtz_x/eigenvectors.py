@@ -49,20 +49,25 @@ def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right',
     # create a function to store the eigenvector
     p = Function(V)
     FixSign(vr) # ensure consistent sign of the eigenvector
-    p.vector.setArray(vr.array) # set the eigenvector to the function from the matrix
+    p.vector.setArray(vr.array) # set the function to store eigenvector
     p.x.scatter_forward()
-    # calculate measure of the function with sqrt(integ(p^2)dx=1)
+    # calculate normalizing measure of the function with sqrt(integral(p^2)dx=1)
     meas = np.sqrt(mesh.comm.allreduce(assemble_scalar(form(p*p*dx)), op=MPI.SUM))
+    # only print normalization measure for right eigenvector
+    if which == 'right':
+        print("- measure of normalization for eigenvector: m=", meas)
+
     temp = vr.array
-    # normalize by dividing by the measure
+    # normalize by dividing array of eigenvector by the measure
     temp = temp/meas
     
     # only if absolute is true, we normalize the eigenvector by the maximum value
-    if absolute:
+    if absolute: # left out for newton solver
         abs_temp = abs(temp)
         max_temp = mesh.comm.allreduce(np.amax(abs_temp), op=MPI.MAX)
         temp = abs_temp/max_temp
 
+    # create a function to store the normalized eigenvector
     p_normalized = Function(V) # Required for Parallel runs
     p_normalized.vector.setArray(temp)
     p_normalized.x.scatter_forward()
@@ -159,6 +164,7 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
     p_dir_vec = p_dir.vector
     p_adj_vec = p_adj.vector
 
+    # normalize according to derivation of shape derivative
     if not B and not D:
         # + 2 \omega C
         dL_domega = matrices.C * (2 * omega_dir)
@@ -178,10 +184,10 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
 
     # measure of the adjoint eigenfunction
     meas = vector_matrix_vector(p_adj_vec, dL_domega, p_dir_vec)
-
+    print("- measure of the shape derivative normalization: ", meas)
     p_adj_vec = multiply(p_adj_vec, 1 / meas)
 
-    p_adj1 = p_adj.copy()  # problem of same nameK of object?? original this code said p_adj1 = p_adj, but then p_adj was modified
+    p_adj1 = p_adj  # problem of same nameK of object?? maybe change to p_adj1 = p_adj.copy()?
     p_adj1.name = "p_adj"
     p_adj1.vector.setArray(p_adj_vec.getArray())
     p_adj1.x.scatter_forward()

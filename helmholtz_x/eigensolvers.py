@@ -392,7 +392,7 @@ def fixed_point_iteration(operators, D,  target, nev, i,
 
 
 # another solver, other than the two fixed point iterations
-def newtonSolver(operators, D, init, nev, i, tol, maxiter, print_results=False):
+def newtonSolver(operators, D, init, nev, i, tol, degree, maxiter, print_results=False):
     """
     The convergence strongly depends/relies on the initial value assigned to omega.
     Targeting zero in the shift-and-invert (spectral) transformation or, more in general,
@@ -438,9 +438,9 @@ def newtonSolver(operators, D, init, nev, i, tol, maxiter, print_results=False):
         # print("eig", eig)   
         # normalize the eigenvectors
         # note that "p" is either direct or adjoint, depending on which matrix D was assembled earlier
-        omega_dir, p = normalize_eigenvector(operators.mesh, E, i, degree=1, which='right', print_eigs=False)
-        # however a second ajoint is required to calculate the convergence of the eigenvalue
-        omega_adj, p_adj = normalize_eigenvector(operators.mesh, E, i, degree=1, which='left', print_eigs=False)
+        omega_dir, p = normalize_eigenvector(operators.mesh, E, i, degree=degree, which='right', print_eigs=False)
+        # however a second ajoint "left" eigenvector is required to calculate the convergence of the eigenvalue
+        omega_adj, p_adj = normalize_eigenvector(operators.mesh, E, i, degree=degree, which='left', print_eigs=False)
 
         # convert into PETSc.Vec type
         p_vec = p.vector
