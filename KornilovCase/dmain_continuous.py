@@ -123,7 +123,7 @@ D = DistributedFlameMatrix(mesh, w, h, rho, T, dparams.q_0, dparams.u_b, FTF, de
 print("\n--- STARTING NEWTON METHOD ---")
 # set the target (expected angular frequency of the system)
 # unit of target: ([Hz])*2*pi = [rad/s] 
-frequ = 150 # 6000 Hz
+frequ = 80 # 6000 Hz
 target = (frequ)*2*np.pi # 6000 Hz
 # LRF:   GrowthRate + Frequ*j                   Re(w) + Im(w)
 # HelmX: Frequ + GrowthRate*j                   Im(w) - Re(w)

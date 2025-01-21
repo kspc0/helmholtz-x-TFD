@@ -13,6 +13,8 @@ __pycache__/
 *.xdmf
 *.h5
 *.msh
+*.png
+
 
 # Folders
 numerical_examples/
@@ -28,3 +30,7 @@ KornilovCase/Meshes/
 KornilovCase/Pictures/
 KornilovCase/PlotEigenvalues/
 KornilovCase/Results/
+
+# specific files
+KornilovCase/plot.py
+KornilovCase/plot_derivatives_comparison.py

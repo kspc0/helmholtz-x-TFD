@@ -11,6 +11,7 @@ import gmsh
 import numpy as np
 from mpi4py import MPI
 from petsc4py import PETSc
+import scipy
 
 # Parameters of the problem
 import dparams
@@ -24,6 +25,7 @@ from helmholtz_x.eigensolvers import fixed_point_iteration, eps_solver, newtonSo
 from helmholtz_x.dolfinx_utils import absolute # to get the absolute value of a function
 from helmholtz_x.shape_derivatives_utils import FFDRectangular, getMeshdata, derivatives_normalize # to define the FFD lattice and get mesh data
 from helmholtz_x.shape_derivatives import shapeDerivativesFFDRect, ShapeDerivativesFFDRectFullBorder, ffd_displacement_vector_rect, ffd_displacement_vector_rect_full_border # to calculate shape derivatives
+from helmholtz_x.petsc4py_utils import conjugate_function
 
 # mark the processing time
 start_time = datetime.datetime.now()
@@ -37,16 +39,23 @@ results_dir = "/Results" # folder for saving results
 eigenvalues_dir = "/PlotEigenvalues" # folder for saving eigenvalues
 
 
+#--------------------------MAIN PARAMETERS-------------------------#
+mesh_resolution = 0.01 # specify mesh resolution
+duct_length = 1 # length of the duct
+degree = 4 # the higher the degree, the longer the calulation takes but the more precise it is
+frequ = 70 # where to expect first mode in Hz
+perturbation = 0.001 # perturbation distance
+
+
 #--------------------------CREATE MESH----------------------------#
 print("\n--- CREATING MESH ---")
 gmsh.initialize() # start the gmsh session
 gmsh.model.add("KornilovCase") # add the model name
-mesh_resolution = 0.01#0.2e-3 # specify mesh resolution
 # locate the points of the 2D geometry: [m]
 p1 = gmsh.model.geo.addPoint(0, 0, 0, mesh_resolution)  
 p2 = gmsh.model.geo.addPoint(0, 0.1, 0, mesh_resolution)
-p3 = gmsh.model.geo.addPoint(1, 0.1, 0, mesh_resolution)
-p4 = gmsh.model.geo.addPoint(1, 0, 0, mesh_resolution)
+p3 = gmsh.model.geo.addPoint(duct_length, 0.1, 0, mesh_resolution)
+p4 = gmsh.model.geo.addPoint(duct_length, 0, 0, mesh_resolution)
 # create outlines by connecting points
 l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
 l2 = gmsh.model.geo.addLine(p2, p3) # upper wall
@@ -90,7 +99,6 @@ boundary_conditions_hom = {1:  {'Neumann'}, # inlet
                            3:  {'Neumann'}, # upper wall
                            4:  {'Neumann'}} # lower wall
 # set the polynomial degree of the base function of the function space
-degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
 # define temperature gradient function in geometrynodenodenodennodeode
 T = dparams.temperature_step_gauss_plane(mesh, dparams.x_f, dparams.T_in, dparams.T_in, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
@@ -118,7 +126,6 @@ D = DistributedFlameMatrix(mesh, w, h, rho, T, dparams.q_0, dparams.u_b, FTF, de
 print("\n--- STARTING NEWTON METHOD ---")
 # set the target (expected angular frequency of the system)
 # unit of target: ([Hz])*2*pi = [rad/s] 
-frequ = 100 # 6000 Hz
 target = (frequ)*2*np.pi # 6000 Hz
 # LRF:   GrowthRate + Frequ*j                   Re(w) + Im(w)
 # HelmX: Frequ + GrowthRate*j                   Im(w) - Re(w)
@@ -171,7 +178,6 @@ ycoords = node_coords[1::3] # get y-coordinates
 zcoords = node_coords[2::3] # get z-coordinates
 # create list to store the indices of the plenum nodes
 # perturb the chosen mesh points slightly in y direction
-perturbation = 0.01 # perturbation distance
 # perturbation is percent based on the y-coordinate
 xcoords += xcoords * perturbation
 # update node y coordinates in mesh from the perturbed points and the unperturbed original points
@@ -180,8 +186,8 @@ node_coords[0::3] = xcoords
 for tag, new_coords in zip(node_tags, node_coords.reshape(-1,3)):
     gmsh.model.mesh.setNode(tag, new_coords, [])
 # update point positions 
-gmsh.model.setCoordinates(p3, perturbation + 1, 0.1, 0)
-gmsh.model.setCoordinates(p4, perturbation + 1, 0, 0)
+gmsh.model.setCoordinates(p3, perturbation + duct_length, 0.1, 0)
+gmsh.model.setCoordinates(p4, perturbation + duct_length, 0, 0)
 # optionally launch GUI to see the results
 # if '-nopopup' not in sys.argv:
 #    gmsh.fltk.run()
@@ -228,45 +234,53 @@ diff_C = perturbed_matrices.C - matrices.C
 print("- Shape of diff_A:", diff_A.getSize())
 print("- Shape of diff_C:", diff_C.getSize())
 
-print("- calculate shape derivative")
-# using formula of numeric shape derivative
-# split in different parts because calculation is too long
+# using formula of numeric/discrete shape derivative
 print("- numerator addition of matrices...")
-Mat_n = diff_A + omega_dir**2 * diff_C
-y = PETSc.Vec().createSeq(Mat_n.getSize()[0])
-Mat_n.mult(p_dir.vector, y)
-# conjugate vector before dot product
-y = np.conj(y.getArray())
-conjugated_y = PETSc.Vec().createSeq(Mat_n.getSize()[0])
-conjugated_y.setValues(range(Mat_n.getSize()[0]), y)
-conjugated_y.assemble()
-# dot product
-numerator = p_adj.vector.dot(conjugated_y)
+Mat_n = diff_A + (omega_dir)**2 * diff_C
+# calculate the spectral norm of the matrix to normalize the shape derivative later
+print("- calculating spectral norm...")
+Mat_n_dense = Mat_n.convert('dense')
+Mat_n_array = Mat_n_dense.getDenseArray()
+# compute the norm of sparse matrix
+#spectral_norm = scipy.sparse.linalg.norm(Mat_n, ord=2)
+spectral_norm = np.linalg.norm(Mat_n_array, ord=2)
 
-#numerator = np.dot(np.dot(p_adj.vector, (diff_A + omega_dir**2 * diff_C)), p_dir.vector)
+y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector to store the result of matrix-vector multiplication
+Mat_n.mult(p_dir.vector, y) # multiply the matrix with the direct eigenfunction
+# conjugate vector before dot product
+#y = np.conj(y.getArray())
+#conjugated_y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector
+#conjugated_y.setValues(range(Mat_n.getSize()[0]), y) # store the conjugated values
+#conjugated_y.assemble()
+p_adj_conj = conjugate_function(p_adj)
+# dot product
+numerator = p_adj_conj.vector.dot(y)
+
 # assemble flame matrix
 D.assemble_submatrices('direct') # assemble direct flame matrix
 print("- denominator...")
-Mat_d = -2*omega_dir*matrices.C + D.get_derivative(omega_dir)
+Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir)
 z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
 Mat_d.mult(p_dir.vector, z)
 # conjugate vector before dot product
-z = np.conj(z.getArray())
-conjugated_z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
-conjugated_z.setValues(range(Mat_d.getSize()[0]), z)
-conjugated_z.assemble()
+# z = np.conj(z.getArray())
+# conjugated_z = PETSc.Vec().createSeq(Mat_d.getSize()[0]) # create empty vector
+# conjugated_z.setValues(range(Mat_d.getSize()[0]), z) # store the conjugated values
+# conjugated_z.assemble()
+p_adj_conj = conjugate_function(p_adj)
 # dot product
-denominator = p_adj.vector.dot(conjugated_z)
-#denominator = np.dot(np.dot(p_adj.vector, (-2*omega_dir*matrices.C + D.get_derivative(omega_dir))), p_dir.vector)
+denominator = p_adj_conj.vector.dot(z)
 print("- total shape derivative...")
 derivative = numerator / denominator
-
+normalized_derivative = derivative / spectral_norm
 
 #--------------------------FINALIZING-----------------------------#
 print("\n")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz")
-print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi)} + {round(target.imag/2/np.pi)}j Hz")
-print(f"---> \033[1mShape Derivative =\033[0m {derivative}")
+print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,2)} + {round(target.imag/2/np.pi,2)}j Hz")
+print(f"---> \033[1mShape Derivative =\033[0m {round(derivative.real/2/np.pi,6)} + {round(derivative.imag/2/np.pi,6)}j")
+print(f"---> \033[1mSpectral Norm =\033[0m {round(spectral_norm,2)}")
+print(f"---> \033[1mNormalized Shape Derivative =\033[0m {round(normalized_derivative.real/2/np.pi,10)} + {round(normalized_derivative.imag/2/np.pi,10)}j")
 # close the gmsh session which was required to run for calculating shape derivatives
 gmsh.finalize()
 # mark the processing time:
