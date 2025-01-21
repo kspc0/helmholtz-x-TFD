@@ -40,10 +40,10 @@ eigenvalues_dir = "/PlotEigenvalues" # folder for saving eigenvalues
 
 
 #--------------------------MAIN PARAMETERS-------------------------#
-mesh_resolution = 0.01 # specify mesh resolution
+mesh_resolution = 0.001 # specify mesh resolution
 duct_length = 1 # length of the duct
-degree = 4 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 70 # where to expect first mode in Hz
+degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
+frequ = 80 # where to expect first mode in Hz
 perturbation = 0.001 # perturbation distance
 
 
@@ -237,13 +237,15 @@ print("- Shape of diff_C:", diff_C.getSize())
 # using formula of numeric/discrete shape derivative
 print("- numerator addition of matrices...")
 Mat_n = diff_A + (omega_dir)**2 * diff_C
+#spectral_norm_sparse = scipy.sparse.linalg.norm(Mat_n, ord=2)
+
 # calculate the spectral norm of the matrix to normalize the shape derivative later
 print("- calculating spectral norm...")
-Mat_n_dense = Mat_n.convert('dense')
-Mat_n_array = Mat_n_dense.getDenseArray()
+#Mat_n_dense = Mat_n.convert('dense')
+#Mat_n_array = Mat_n_dense.getDenseArray()
 # compute the norm of sparse matrix
 #spectral_norm = scipy.sparse.linalg.norm(Mat_n, ord=2)
-spectral_norm = np.linalg.norm(Mat_n_array, ord=2)
+spectral_norm =1# np.linalg.norm(Mat_n_array, ord=2)
 
 y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector to store the result of matrix-vector multiplication
 Mat_n.mult(p_dir.vector, y) # multiply the matrix with the direct eigenfunction
@@ -276,6 +278,10 @@ normalized_derivative = derivative / spectral_norm
 
 #--------------------------FINALIZING-----------------------------#
 print("\n")
+print(f"---> \033[1mMesh Resolution =\033[0m {mesh_resolution}")
+print(f"---> \033[1mDuct Length =\033[0m {duct_length} m")
+print(f"---> \033[1mPolynomial Degree =\033[0m {degree}")
+print(f"---> \033[1mPerturbation Distance =\033[0m {perturbation} m")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz")
 print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,2)} + {round(target.imag/2/np.pi,2)}j Hz")
 print(f"---> \033[1mShape Derivative =\033[0m {round(derivative.real/2/np.pi,6)} + {round(derivative.imag/2/np.pi,6)}j")
