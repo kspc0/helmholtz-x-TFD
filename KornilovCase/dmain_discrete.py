@@ -40,11 +40,11 @@ eigenvalues_dir = "/PlotEigenvalues" # folder for saving eigenvalues
 
 
 #--------------------------MAIN PARAMETERS-------------------------#
-mesh_resolution = 0.001 # specify mesh resolution
+mesh_resolution = 0.01 # specify mesh resolution
 duct_length = 1 # length of the duct
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
 frequ = 80 # where to expect first mode in Hz
-perturbation = 0.001 # perturbation distance
+perturbation = 0.002 # perturbation distance
 
 
 #--------------------------CREATE MESH----------------------------#

@@ -55,7 +55,7 @@ def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right',
     meas = np.sqrt(mesh.comm.allreduce(assemble_scalar(form(p*p*dx)), op=MPI.SUM))
     # only print normalization measure for right eigenvector
     if which == 'right':
-        print("- measure of normalization for eigenvector: m=", meas)
+        print("- measure of normalization for eigenvector: m=", round(meas.real,6))
 
     temp = vr.array
     # normalize by dividing array of eigenvector by the measure
@@ -168,6 +168,7 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
     if not B and not D:
         # + 2 \omega C
         dL_domega = matrices.C * (2 * omega_dir)
+        print("- using normalization 2 omega C")
     elif B and not D:
         # B + 2 \omega C
         dL_domega = (B +
@@ -175,7 +176,8 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
     elif D and not B:
         # 2 \omega C - D'(\omega)
         dL_domega = (matrices.C * (2 * omega_dir) -
-                     D.get_derivative(omega_dir))
+                    D.get_derivative(omega_dir))
+        print("- using normalization 2 omega C - D'")
     else:
         # B + 2 \omega C - D'(\omega)
         dL_domega = (B +
@@ -187,7 +189,7 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
     print("- measure of the shape derivative normalization: ", meas)
     p_adj_vec = multiply(p_adj_vec, 1 / meas)
 
-    p_adj1 = p_adj  # problem of same nameK of object?? maybe change to p_adj1 = p_adj.copy()?
+    p_adj1 = p_adj.copy()  # problem of same nameK of object?? maybe change to p_adj1 = p_adj.copy()?
     p_adj1.name = "p_adj"
     p_adj1.vector.setArray(p_adj_vec.getArray())
     p_adj1.x.scatter_forward()

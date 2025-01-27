@@ -231,7 +231,7 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
     # print("type of Gradient object: ",type(G_neu))  
 
     derivatives = {}
-    print("- shape derivatives of border")
+    print("- assembling shape derivatives of border")
     # calculate the local diplacement field V at the border
     V_ffd = ffd_displacement_vector_rect_full_border(geometry, physical_facet_tag, norm_vector, deg=1)
     # calculate the shape derivative of the control point
@@ -240,9 +240,9 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
     #print(inner(V_ffd, normal))
     #print("V_ffd values:", len(V_ffd.vector.array))
     # Integrate inner(V_ffd, normal) over the domain
-    #V_ffd_normal_form = form(inner(V_ffd, normal) * ds(physical_facet_tag))
-    #V_ffd_normal_value = assemble_scalar(V_ffd_normal_form)
-    # print("Integral of inner(V_ffd, normal) over the domain:", V_ffd_normal_value)
+    V_ffd_normal_form = form(inner(V_ffd, normal) * ds(physical_facet_tag))
+    V_ffd_normal_value = assemble_scalar(V_ffd_normal_form)
+    #print("Integral of inner(V_ffd, normal) over the domain:", V_ffd_normal_value)
 
     # calculate the shape derivative of the border
     shape_derivative_form = form(inner(V_ffd, normal) * G_neu * ds(physical_facet_tag))
@@ -283,13 +283,14 @@ def ffd_displacement_vector_rect_full_border(geometry, surface_physical_tag, nor
     dofs_Q = dofs_Q.reshape(-1,2)
 
     number_of_mesh_points_on_border = round(len(coords)/3) # for 3 dimensions
+    print("- number of mesh points on border:", number_of_mesh_points_on_border)
     # list of values containing each node as element, calculated by the bernstein polynomials
     # value = comb(FFDLattice.l-1,i)*np.power(1-s, FFDLattice.l-1-i)*np.power(s,i) * \
     #         comb(FFDLattice.m-1,j)*np.power(1-t, FFDLattice.m-1-j)*np.power(t,j)
     # equally distribute displacement vector on all mesh points to total sum up to 1
     value = np.zeros(number_of_mesh_points_on_border) # number of mesh points on the border
     for element in range(0,number_of_mesh_points_on_border):
-        value[element] = 1/number_of_mesh_points_on_border # value in total should sum up to 1
+        value[element] = 1#/number_of_mesh_points_on_border # value in total should sum up to 1
     #print("value", value)
     print("- integral of displacment field mesh vectors =", np.sum(value)) # should be =1 ?ß
 
