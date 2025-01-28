@@ -43,9 +43,9 @@ eigenvalues_dir = "/PlotEigenvalues" # folder for saving eigenvalues
 mesh_resolution = 0.01 # specify mesh resolution
 duct_length = 1 # length of the duct
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 80 # where to expect first mode in Hz
-perturbation = 0.002 # perturbation distance
-
+frequ = 200 # where to expect first mode in Hz
+perturbation = 0.001 # perturbation distance
+homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 
 #--------------------------CREATE MESH----------------------------#
 print("\n--- CREATING MESH ---")
@@ -98,9 +98,16 @@ boundary_conditions_hom = {1:  {'Neumann'}, # inlet
                            2:  {'Dirichlet'}, # outlet
                            3:  {'Neumann'}, # upper wall
                            4:  {'Neumann'}} # lower wall
-# set the polynomial degree of the base function of the function space
+# decide which case is used -homogeneous or inhomogeneous
+if homogeneous_case: # homogeneous case
+    T_output = dparams.T_in
+    Rho_output = dparams.rho_u
+else: # inhomogeneous case
+    T_output = dparams.T_out
+    Rho_output = dparams.rho_d
+
 # define temperature gradient function in geometrynodenodenodennodeode
-T = dparams.temperature_step_gauss_plane(mesh, dparams.x_f, dparams.T_in, dparams.T_in, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
+T = dparams.temperature_step_gauss_plane(mesh, dparams.x_f, dparams.T_in, T_output, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
 c = sound_speed(T)
 # calculate the passive acoustic matrices
@@ -113,12 +120,17 @@ print("\n--- ASSEMBLING FLAME MATRIX ---")
 FTF = stateSpace(dparams.S1, dparams.s2, dparams.s3, dparams.s4)
 # define input functions for the flame matrix
 # density function:
-rho = dparams.rhoFunctionPlane(mesh, dparams.x_f, dparams.a_f, dparams.rho_d, dparams.rho_u, dparams.amplitude, dparams.sig, dparams.limit)
-# measurement function:
-w = dparams.gaussianFunctionHplaneHomogenous(mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
-# heat release rate function:
-h = dparams.gaussianFunctionHplaneHomogenous(mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
-# calculate the flame matrix
+rho = dparams.rhoFunctionPlane(mesh, dparams.x_f, dparams.a_f, Rho_output, dparams.rho_u, dparams.amplitude, dparams.sig, dparams.limit)
+if homogeneous_case:
+    # measurement function:
+    w = dparams.gaussianFunctionHplaneHomogenous(mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
+    # heat release rate function:
+    h = dparams.gaussianFunctionHplaneHomogenous(mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
+else:
+    w = dparams.gaussianFunctionHplane(mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
+    # heat release rate function:
+    h = dparams.gaussianFunctionHplane(mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
+    # calculate the flame matrix
 D = DistributedFlameMatrix(mesh, w, h, rho, T, dparams.q_0, dparams.u_b, FTF, degree=degree, gamma=dparams.gamma)
 
 
@@ -283,10 +295,10 @@ print(f"---> \033[1mDuct Length =\033[0m {duct_length} m")
 print(f"---> \033[1mPolynomial Degree =\033[0m {degree}")
 print(f"---> \033[1mPerturbation Distance =\033[0m {perturbation} m")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz")
-print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,2)} + {round(target.imag/2/np.pi,2)}j Hz")
-print(f"---> \033[1mShape Derivative =\033[0m {round(derivative.real/2/np.pi,6)} + {round(derivative.imag/2/np.pi,6)}j")
-print(f"---> \033[1mSpectral Norm =\033[0m {round(spectral_norm,2)}")
-print(f"---> \033[1mNormalized Shape Derivative =\033[0m {round(normalized_derivative.real/2/np.pi,10)} + {round(normalized_derivative.imag/2/np.pi,10)}j")
+print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(target.imag/2/np.pi,4)}j Hz")
+print(f"---> \033[1mShape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation/duct_length,8)} + {round(derivative.imag/2/np.pi/perturbation/duct_length,8)}j")
+#print(f"---> \033[1mSpectral Norm =\033[0m {round(spectral_norm,2)}")
+#print(f"---> \033[1mNormalized Shape Derivative =\033[0m {round(normalized_derivative.real/2/np.pi,10)} + {round(normalized_derivative.imag/2/np.pi,10)}j")
 # close the gmsh session which was required to run for calculating shape derivatives
 gmsh.finalize()
 # mark the processing time:

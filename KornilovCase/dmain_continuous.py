@@ -15,11 +15,6 @@ from dolfinx import fem
 
 # Parameters of the problem
 import dparams
-# dolfin and ufl packages
-from dolfinx.fem import Function, FunctionSpace
-from dolfinx.fem.petsc import LinearProblem
-from dolfinx.mesh import locate_entities_boundary
-from ufl import div, grad, dx, inner, TestFunction, TrialFunction
 # HelmholtzX utilities
 from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh # to write mesh data as files
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
@@ -45,9 +40,9 @@ eigenvalues_dir = "/PlotEigenvalues" # folder for saving eigenvalues
 #--------------------------MAIN PARAMETERS-------------------------#
 mesh_resolution = 0.01 # specify mesh resolution
 duct_length = 1 # length of the duct
-degree = 3 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 80 # where to expect first mode in Hz
-
+degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
+frequ = 200 # where to expect first mode in Hz
+homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 
 #--------------------------CREATE MESH----------------------------#
 print("\n--- CREATING MESH ---")
@@ -100,9 +95,16 @@ boundary_conditions_hom = {1:  {'Neumann'}, # inlet
                            2:  {'Dirichlet'}, # outlet
                            3:  {'Neumann'}, # upper wall
                            4:  {'Neumann'}} # lower wall
-# set the polynomial degree of the base function of the function space
+# decide which case is used -homogeneous or inhomogeneous
+if homogeneous_case: # homogeneous case
+    T_output = dparams.T_in
+    Rho_output = dparams.rho_u
+else: # inhomogeneous case
+    T_output = dparams.T_out
+    Rho_output = dparams.rho_d
+
 # define temperature gradient function in geometry
-T = dparams.temperature_step_gauss_plane(mesh, dparams.x_f, dparams.T_in, dparams.T_in, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
+T = dparams.temperature_step_gauss_plane(mesh, dparams.x_f, dparams.T_in, T_output, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
 c = sound_speed(T)
 # calculate the passive acoustic matrices
@@ -115,12 +117,17 @@ print("\n--- ASSEMBLING FLAME MATRIX ---")
 FTF = stateSpace(dparams.S1, dparams.s2, dparams.s3, dparams.s4)
 # define input functions for the flame matrix
 # density function:
-rho = dparams.rhoFunctionPlane(mesh, dparams.x_f, dparams.a_f, dparams.rho_d, dparams.rho_u, dparams.amplitude, dparams.sig, dparams.limit)
-# measurement function:
-w = dparams.gaussianFunctionHplaneHomogenous(mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
-# heat release rate function:
-h = dparams.gaussianFunctionHplaneHomogenous(mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
-# calculate the flame matrix
+rho = dparams.rhoFunctionPlane(mesh, dparams.x_f, dparams.a_f, Rho_output, dparams.rho_u, dparams.amplitude, dparams.sig, dparams.limit)
+if homogeneous_case:
+    # measurement function:
+    w = dparams.gaussianFunctionHplaneHomogenous(mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
+    # heat release rate function:
+    h = dparams.gaussianFunctionHplaneHomogenous(mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
+else:
+    w = dparams.gaussianFunctionHplane(mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
+    # heat release rate function:
+    h = dparams.gaussianFunctionHplane(mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
+    # calculate the flame matrix
 D = DistributedFlameMatrix(mesh, w, h, rho, T, dparams.q_0, dparams.u_b, FTF, degree=degree, gamma=dparams.gamma)
 
 
@@ -175,11 +182,9 @@ print("\n--- CALCULATING SHAPE DERIVATIVES ---")
 # 1 for inlet
 # 2 for outlet
 physical_facet_tag_inlet = 1 # tag of the wall to be displaced
-physical_facet_tag_outlet = 2 # tag of the wall to be displaced
 # [1,0] for inlet
 # [-1,0] for outlet
 norm_vector_inlet = [-1,0] # normal outside vector of the wall to be displaced
-norm_vector_outlet = [1,0] # normal outside vector of the wall to be displaced
 
 # visualize example displacement field for full displaced border
 V_ffd = ffd_displacement_vector_rect_full_border(Kornilov, physical_facet_tag_inlet, norm_vector_inlet, deg=1)
@@ -187,18 +192,19 @@ xdmf_writer(path+"/InputFunctions/V_ffd", mesh, V_ffd)
 
 # calculate the shape derivatives for each control point
 print("- calculating shape derivative")
-derivatives_inlet = ShapeDerivativesFFDRectFullBorder(Kornilov, physical_facet_tag_inlet, norm_vector_inlet, omega_dir, p_dir, p_adj, c, matrices, D)
-derivatives_outlet = ShapeDerivativesFFDRectFullBorder(Kornilov, physical_facet_tag_outlet, norm_vector_outlet, omega_dir, p_dir, p_adj, c, matrices, D)
+derivative = ShapeDerivativesFFDRectFullBorder(Kornilov, physical_facet_tag_inlet, norm_vector_inlet, omega_dir, p_dir, p_adj, c, matrices, D)
 # Normalize shape derivative does not affect because there is just one value
 #derivatives_normalized = derivatives_normalize(derivatives)
 
 
 #--------------------------FINALIZING-----------------------------#
 print("\n")
+print(f"---> \033[1mMesh Resolution =\033[0m {mesh_resolution}")
+print(f"---> \033[1mDuct Length =\033[0m {duct_length} m")
+print(f"---> \033[1mPolynomial Degree =\033[0m {degree}")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz")
-print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi)} + {round(target.imag/2/np.pi)}j Hz")
-print(f"---> \033[1mShape Derivative =\033[0m {round(derivatives_inlet[1].real/2/np.pi,6)} + {round(derivatives_inlet[1].imag/2/np.pi,6)}j")
-print(f"---> \033[1mShape Derivative =\033[0m {round(derivatives_outlet[1].real/2/np.pi,6)} + {round(derivatives_outlet[1].imag/2/np.pi,6)}j")
+print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(target.imag/2/np.pi,4)}j Hz")
+print(f"---> \033[1mShape Derivative =\033[0m {round(derivative[1].real/2/np.pi,8)} + {round(derivative[1].imag/2/np.pi,8)}j")
 # close the gmsh session which was required to run for calculating shape derivatives
 gmsh.finalize()
 # mark the processing time:

@@ -31,6 +31,7 @@ KornilovCase/Pictures/
 KornilovCase/PlotEigenvalues/
 KornilovCase/Results/
 
-# specific files
-KornilovCase/plot.py
-KornilovCase/plot_derivatives_comparison.py
+# ignore plotting files
+KornilovCase/plot*
+# KornilovCase/plot_derivatives_comparison.py
+# KornilovCase/plot_compare_shape_derivatives.py

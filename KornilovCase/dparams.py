@@ -24,12 +24,12 @@ c_amb = sqrt(gamma*p_amb/rho_amb)  # [m/s] ambient speed of sound 343,11426662
 ### density, temperature and speed of sound
 # input and output density
 rho_u = rho_amb  # [kg/m^3] -> 1,189187904 ~1.2
-rho_d = rho_amb #0.17 inhomogenous case  # [kg/m^3]
+rho_d = 0.17 # inhomogenous case  # [kg/m^3]
 # input and output temperature
 T_in = p_amb/(r_gas*rho_u)  # [K] -> 293
 T_out = p_amb/(r_gas*rho_d)  # [K] -> 2049
 # input and output speed of sound
-c_in = sqrt(gamma*p_amb/rho_u)  # [kg/m^3] -> 343
+c_in = sqrt(gamma*p_amb/rho_u)  # [kg/m^3] -> 343.114266
 c_out = sqrt(gamma*p_amb/rho_d)  # [kg/m^3] -> 910
 
 # No reflection coefficients for boundaries
@@ -48,12 +48,12 @@ s4 = np.array([[0]]) # d
 d = 1e-3 # used to dimension the mesh between scale 1m and scale 1e-3m
 ### Flame location
 # flame location in 2D
-x_f = np.array([[300*d, 0.0, 0.0]])  # [m] flame located at roughly 13mm
-a_f = 50*d # [m] thickness of flame
+x_f = np.array([[250*d, 0.0, 0.0]])  # [m] flame located at roughly 13mm in Kornilov Case
+a_f = 25*d # [m] thickness of flame
 # reference point coordinates - needed?
-x_r = np.array([[100*d, 0., 0.]])  # [m] reference located at 5mm
-a_r = 50*d  # [m] thickness of reference
-# gauss function dimensions
+x_r = np.array([[200*d, 0., 0.]])  # [m] reference located at 5mm in Kornilov Case
+a_r = 25*d  # [m] thickness of reference
+# gauss function dimensions for a side view gaussian function
 sig = 80*d # [m] thickness of flame gauss function
 amplitude = 4*d # [m] height of flame gauss function
 limit = 1*d # [m] horizontal separation for breakpoint of density function
@@ -316,8 +316,8 @@ if __name__ == '__main__':
     # T_func = temperature_step_gauss(mesh, x_f,T_in, T_out, amplitude, sig) # step temperature (modified to Kornilov)
 
     # create the functions with plane flame
-    h_func = gaussianFunctionHplaneHomogenous(mesh, x_f, a_f, amplitude, sig) # gauss heat release rate (modified to Kornilov)
-    w_func = gaussianFunctionHplaneHomogenous(mesh, x_r, a_r, amplitude, sig) # gauss measurement (original from HelmX)
+    h_func = gaussianFunctionHplane(mesh, x_f, a_f, amplitude, sig) # gauss heat release rate (modified to Kornilov)
+    w_func = gaussianFunctionHplane(mesh, x_r, a_r, amplitude, sig) # gauss measurement (original from HelmX)
     rho_func = rhoFunctionPlane(mesh, x_f, a_f, rho_d, rho_u, amplitude, sig, limit) # tanh density
     c_func = c_step_gauss_plane(mesh, x_f, c_in, c_out, amplitude, sig) # step sound speed (modified to Kornilov)
     T_func_temp = temperature_step_gauss_plane(mesh, x_f, T_in, T_out, amplitude, sig) # step temperature (modified to Kornilov)
