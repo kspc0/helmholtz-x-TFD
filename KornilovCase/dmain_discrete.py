@@ -16,7 +16,7 @@ import scipy
 # Parameters of the problem
 import dparams
 # HelmholtzX utilities
-from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh # to write mesh data as files
+from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh, load_xdmf_mesh # to write mesh data as files
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
 from helmholtz_x.acoustic_matrices import AcousticMatrices # to assemble the acoustic matrices for discrete Helm. EQU
 from helmholtz_x.flame_transfer_function import stateSpace # to define the flame transfer function
@@ -24,8 +24,8 @@ from helmholtz_x.flame_matrices import DistributedFlameMatrix # to define the fl
 from helmholtz_x.eigensolvers import fixed_point_iteration, eps_solver, newtonSolver # to solve the system
 from helmholtz_x.dolfinx_utils import absolute # to get the absolute value of a function
 from helmholtz_x.shape_derivatives_utils import FFDRectangular, getMeshdata, derivatives_normalize # to define the FFD lattice and get mesh data
-from helmholtz_x.shape_derivatives import shapeDerivativesFFDRect, ShapeDerivativesFFDRectFullBorder, ffd_displacement_vector_rect, ffd_displacement_vector_rect_full_border # to calculate shape derivatives
-from helmholtz_x.petsc4py_utils import conjugate_function
+from helmholtz_x.shape_derivatives import ShapeDerivativesFFDRectFullBorder, ffd_displacement_vector_rect_full_border # to calculate shape derivatives
+from helmholtz_x.petsc4py_utils import conjugate_function, vector_matrix_vector
 
 # mark the processing time
 start_time = datetime.datetime.now()
@@ -40,12 +40,13 @@ eigenvalues_dir = "/PlotEigenvalues" # folder for saving eigenvalues
 
 
 #--------------------------MAIN PARAMETERS-------------------------#
-mesh_resolution = 0.01 # specify mesh resolution
-duct_length = 1 # length of the duct
+mesh_resolution = 0.008 # specify mesh resolution
+duct_length = 2 # length of the duct
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 200 # where to expect first mode in Hz
+frequ = 110 # where to expect first mode in Hz
 perturbation = 0.001 # perturbation distance
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
+
 
 #--------------------------CREATE MESH----------------------------#
 print("\n--- CREATING MESH ---")
@@ -99,10 +100,11 @@ boundary_conditions_hom = {1:  {'Neumann'}, # inlet
                            3:  {'Neumann'}, # upper wall
                            4:  {'Neumann'}} # lower wall
 # decide which case is used -homogeneous or inhomogeneous
-if homogeneous_case: # homogeneous case
+if homogeneous_case: # passive case
+    # temperature and density do not change in the homogeneous case
     T_output = dparams.T_in
     Rho_output = dparams.rho_u
-else: # inhomogeneous case
+else: # reactive case with a flame
     T_output = dparams.T_out
     Rho_output = dparams.rho_d
 
@@ -130,7 +132,7 @@ else:
     w = dparams.gaussianFunctionHplane(mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
     # heat release rate function:
     h = dparams.gaussianFunctionHplane(mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
-    # calculate the flame matrix
+# calculate the flame matrix
 D = DistributedFlameMatrix(mesh, w, h, rho, T, dparams.q_0, dparams.u_b, FTF, degree=degree, gamma=dparams.gamma)
 
 
@@ -191,6 +193,9 @@ zcoords = node_coords[2::3] # get z-coordinates
 # create list to store the indices of the plenum nodes
 # perturb the chosen mesh points slightly in y direction
 # perturbation is percent based on the y-coordinate
+# for i, x in enumerate(xcoords):
+#     if x > 0.3:
+#         xcoords[i] += (x - 0.3) * perturbation
 xcoords += xcoords * perturbation
 # update node y coordinates in mesh from the perturbed points and the unperturbed original points
 node_coords[0::3] = xcoords
@@ -200,6 +205,8 @@ for tag, new_coords in zip(node_tags, node_coords.reshape(-1,3)):
 # update point positions 
 gmsh.model.setCoordinates(p3, perturbation + duct_length, 0.1, 0)
 gmsh.model.setCoordinates(p4, perturbation + duct_length, 0, 0)
+#gmsh.model.setCoordinates(p3, perturbation*0.7 + duct_length, 0.1, 0)
+#gmsh.model.setCoordinates(p4, perturbation*0.7 + duct_length, 0, 0)
 # optionally launch GUI to see the results
 # if '-nopopup' not in sys.argv:
 #    gmsh.fltk.run()
@@ -216,7 +223,7 @@ perturbed_mesh, perturbed_subdomains, perturbed_facet_tags = perturbed_Kornilov.
 perturbed_Kornilov.getInfo()
 
 # define temperature gradient function in geometry
-T = dparams.temperature_step_gauss_plane(perturbed_mesh, dparams.x_f, dparams.T_in, dparams.T_in, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
+T = dparams.temperature_step_gauss_plane(perturbed_mesh, dparams.x_f, dparams.T_in, T_output, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
 c = sound_speed(T)
 # calculate the passive acoustic matrices
@@ -228,12 +235,16 @@ print("\n--- REASSEMBLING FLAME MATRIX ---")
 # using statespace model to define the flame transfer function
 FTF = stateSpace(dparams.S1, dparams.s2, dparams.s3, dparams.s4)
 # define input functions for the flame matrix
-# density function:
-rho = dparams.rhoFunctionPlane(perturbed_mesh, dparams.x_f, dparams.a_f, dparams.rho_d, dparams.rho_u, dparams.amplitude, dparams.sig, dparams.limit)
-# measurement function:
-w = dparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
-# heat release rate function:
-h = dparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
+rho = dparams.rhoFunctionPlane(perturbed_mesh, dparams.x_f, dparams.a_f, Rho_output, dparams.rho_u, dparams.amplitude, dparams.sig, dparams.limit)
+if homogeneous_case:
+    # measurement function:
+    w = dparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
+    # heat release rate function:
+    h = dparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
+else:
+    w = dparams.gaussianFunctionHplane(perturbed_mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
+    # heat release rate function:
+    h = dparams.gaussianFunctionHplane(perturbed_mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
 # calculate the flame matrix
 D = DistributedFlameMatrix(perturbed_mesh, w, h, rho, T, dparams.q_0, dparams.u_b, FTF, degree=degree, gamma=dparams.gamma)
 
@@ -243,32 +254,22 @@ print("\n--- CALCULATING SHAPE DERIVATIVES ---")
 print("- calculate perturbed matrices")
 diff_A = perturbed_matrices.A - matrices.A
 diff_C = perturbed_matrices.C - matrices.C
-print("- Shape of diff_A:", diff_A.getSize())
-print("- Shape of diff_C:", diff_C.getSize())
+#print("- Shape of diff_A:", diff_A.getSize())
+#print("- Shape of diff_C:", diff_C.getSize())
 
 # using formula of numeric/discrete shape derivative
 print("- numerator addition of matrices...")
-Mat_n = diff_A + (omega_dir)**2 * diff_C
+omega_square = omega_dir.real**2 - omega_dir.imag**2 + 2j*omega_dir.real*omega_dir.imag
+Mat_n = diff_A + omega_square * diff_C 
 #spectral_norm_sparse = scipy.sparse.linalg.norm(Mat_n, ord=2)
 
-# calculate the spectral norm of the matrix to normalize the shape derivative later
-print("- calculating spectral norm...")
-#Mat_n_dense = Mat_n.convert('dense')
-#Mat_n_array = Mat_n_dense.getDenseArray()
-# compute the norm of sparse matrix
-#spectral_norm = scipy.sparse.linalg.norm(Mat_n, ord=2)
-spectral_norm =1# np.linalg.norm(Mat_n_array, ord=2)
 
 y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector to store the result of matrix-vector multiplication
 Mat_n.mult(p_dir.vector, y) # multiply the matrix with the direct eigenfunction
-# conjugate vector before dot product
-#y = np.conj(y.getArray())
-#conjugated_y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector
-#conjugated_y.setValues(range(Mat_n.getSize()[0]), y) # store the conjugated values
-#conjugated_y.assemble()
 p_adj_conj = conjugate_function(p_adj)
 # dot product
 numerator = p_adj_conj.vector.dot(y)
+numerator2 = vector_matrix_vector(p_adj.vector, Mat_n, p_dir.vector)
 
 # assemble flame matrix
 D.assemble_submatrices('direct') # assemble direct flame matrix
@@ -276,27 +277,37 @@ print("- denominator...")
 Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir)
 z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
 Mat_d.mult(p_dir.vector, z)
-# conjugate vector before dot product
-# z = np.conj(z.getArray())
-# conjugated_z = PETSc.Vec().createSeq(Mat_d.getSize()[0]) # create empty vector
-# conjugated_z.setValues(range(Mat_d.getSize()[0]), z) # store the conjugated values
-# conjugated_z.assemble()
 p_adj_conj = conjugate_function(p_adj)
 # dot product
 denominator = p_adj_conj.vector.dot(z)
+denominator2 = vector_matrix_vector(p_adj.vector, Mat_d, p_dir.vector)
+
 print("- total shape derivative...")
-derivative = numerator / denominator
-normalized_derivative = derivative / spectral_norm
+print("numerator:", numerator)
+print("denominator:", denominator)
+#derivative = numerator / denominator
+#derivative = numerator.real / denominator.real + numerator.imag / denominator.imag *1j
+#normalized_derivative = derivative / spectral_norm
+# calculate quotient of complex number
+real_part = numerator.real*denominator.real + numerator.imag*denominator.imag
+imag_part = 1j*(numerator.imag*denominator.real - numerator.real*denominator.imag)
+derivative = (real_part + imag_part) / (denominator.real**2 + denominator.imag**2)
+
 
 #--------------------------FINALIZING-----------------------------#
 print("\n")
+if omega_dir.imag > 0: 
+    stability = 'instable'
+else:
+    stability = 'stable'
 print(f"---> \033[1mMesh Resolution =\033[0m {mesh_resolution}")
 print(f"---> \033[1mDuct Length =\033[0m {duct_length} m")
 print(f"---> \033[1mPolynomial Degree =\033[0m {degree}")
 print(f"---> \033[1mPerturbation Distance =\033[0m {perturbation} m")
-print(f"---> \033[1mTarget =\033[0m {frequ} Hz")
-print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(target.imag/2/np.pi,4)}j Hz")
-print(f"---> \033[1mShape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation/duct_length,8)} + {round(derivative.imag/2/np.pi/perturbation/duct_length,8)}j")
+print(f"---> \033[1mTarget =\033[0m {frequ} Hz ")
+print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
+print(f"---> \033[1mDiscrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi,8)} + {round(derivative.imag/2/np.pi,8)}j")
+print(f"---> \033[1mNormalized Discrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation/duct_length,8)} + {round(derivative.imag/2/np.pi/perturbation/duct_length,8)}j")
 #print(f"---> \033[1mSpectral Norm =\033[0m {round(spectral_norm,2)}")
 #print(f"---> \033[1mNormalized Shape Derivative =\033[0m {round(normalized_derivative.real/2/np.pi,10)} + {round(normalized_derivative.imag/2/np.pi,10)}j")
 # close the gmsh session which was required to run for calculating shape derivatives

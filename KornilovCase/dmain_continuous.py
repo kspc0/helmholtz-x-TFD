@@ -38,11 +38,12 @@ eigenvalues_dir = "/PlotEigenvalues" # folder for saving eigenvalues
 
 
 #--------------------------MAIN PARAMETERS-------------------------#
-mesh_resolution = 0.01 # specify mesh resolution
-duct_length = 1 # length of the duct
+mesh_resolution = 0.008 # specify mesh resolution
+duct_length = 1.75 # length of the duct
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 200 # where to expect first mode in Hz
+frequ = 120 # where to expect first mode in Hz
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
+
 
 #--------------------------CREATE MESH----------------------------#
 print("\n--- CREATING MESH ---")
@@ -181,30 +182,35 @@ print("\n--- CALCULATING SHAPE DERIVATIVES ---")
 # compute omega' for each control point
 # 1 for inlet
 # 2 for outlet
-physical_facet_tag_inlet = 1 # tag of the wall to be displaced
+physical_facet_tag = 1 # tag of the wall to be displaced
 # [1,0] for inlet
 # [-1,0] for outlet
 norm_vector_inlet = [-1,0] # normal outside vector of the wall to be displaced
 
 # visualize example displacement field for full displaced border
-V_ffd = ffd_displacement_vector_rect_full_border(Kornilov, physical_facet_tag_inlet, norm_vector_inlet, deg=1)
+V_ffd = ffd_displacement_vector_rect_full_border(Kornilov, physical_facet_tag, norm_vector_inlet, deg=1)
 xdmf_writer(path+"/InputFunctions/V_ffd", mesh, V_ffd)
 
 # calculate the shape derivatives for each control point
 print("- calculating shape derivative")
-derivative = ShapeDerivativesFFDRectFullBorder(Kornilov, physical_facet_tag_inlet, norm_vector_inlet, omega_dir, p_dir, p_adj, c, matrices, D)
+derivative = ShapeDerivativesFFDRectFullBorder(Kornilov, physical_facet_tag, norm_vector_inlet, omega_dir, p_dir, p_adj, c, matrices, D)
 # Normalize shape derivative does not affect because there is just one value
 #derivatives_normalized = derivatives_normalize(derivatives)
 
 
 #--------------------------FINALIZING-----------------------------#
 print("\n")
+if omega_dir.imag > 0: 
+    stability = 'instable'
+else:
+    stability = 'stable'
+print(f"---> \033[1mDisplaced Wall\033[0m: {physical_facet_tag}")
 print(f"---> \033[1mMesh Resolution =\033[0m {mesh_resolution}")
 print(f"---> \033[1mDuct Length =\033[0m {duct_length} m")
 print(f"---> \033[1mPolynomial Degree =\033[0m {degree}")
-print(f"---> \033[1mTarget =\033[0m {frequ} Hz")
-print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(target.imag/2/np.pi,4)}j Hz")
-print(f"---> \033[1mShape Derivative =\033[0m {round(derivative[1].real/2/np.pi,8)} + {round(derivative[1].imag/2/np.pi,8)}j")
+print(f"---> \033[1mTarget =\033[0m {frequ} Hz ")
+print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
+print(f"---> \033[1mContinuous Shape Derivative =\033[0m {round(derivative[1].real/2/np.pi,8)} + {round(derivative[1].imag/2/np.pi,8)}j")
 # close the gmsh session which was required to run for calculating shape derivatives
 gmsh.finalize()
 # mark the processing time:

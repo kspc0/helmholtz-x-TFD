@@ -189,7 +189,7 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
     print("- measure of the shape derivative normalization: ", meas)
     p_adj_vec = multiply(p_adj_vec, 1 / meas)
 
-    p_adj1 = p_adj.copy()  # problem of same nameK of object?? maybe change to p_adj1 = p_adj.copy()?
+    p_adj1 = p_adj # need to add .copy() if calculate parallel two derivatives for inlet and outlet
     p_adj1.name = "p_adj"
     p_adj1.vector.setArray(p_adj_vec.getArray())
     p_adj1.x.scatter_forward()

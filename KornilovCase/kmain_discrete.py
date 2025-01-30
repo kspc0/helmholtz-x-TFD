@@ -24,16 +24,11 @@ from helmholtz_x.eigensolvers import fixed_point_iteration, eps_solver, newtonSo
 from helmholtz_x.dolfinx_utils import absolute # to get the absolute value of a function
 from helmholtz_x.shape_derivatives_utils import FFDRectangular, getMeshdata, nonaxisymmetric_derivatives_normalize # to define the FFD lattice and get mesh data
 from helmholtz_x.shape_derivatives import shapeDerivativesFFDRect, ShapeDerivativesFFDRectFullBorder, ffd_displacement_vector_rect, ffd_displacement_vector_rect_full_border # to calculate shape derivatives
+from helmholtz_x.petsc4py_utils import conjugate_function
+
 
 # mark the processing time
 start_time = datetime.datetime.now()
-# set multi core processing
-# os.environ["OMP_NUM_THREADS"] = "8" # set number of threads to 8
-# os.environ["MKL_NUM_THREADS"] = "8" # set number of threads for intel to 8
-# Initialize MPI
-# comm = MPI.COMM_WORLD
-# rank = comm.Get_rank()
-# size = comm.Get_size()
 
 
 # set variables to load and save files
@@ -45,19 +40,29 @@ results_dir = "/Results" # folder for saving results
 eigenvalues_dir = "/PlotEigenvalues" # folder for saving eigenvalues
 
 
+#--------------------------MAIN PARAMETERS-------------------------#
+mesh_resolution = 0.2e-3 # specify mesh resolution
+degree = 1 # the higher the degree, the longer the calulation takes but the more precise it is
+frequ = 5000 # where to expect first mode in Hz
+perturbation = 0.0001 # perturbation distance
+homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
+plenum_length = 10e-3 # length of the plenum
+plenum_height = 2.5e-3 # height of the plenum
+slit_height = 1e-3 # height of the slit
+
+
 #--------------------------CREATE MESH----------------------------#
 print("\n--- CREATING MESH ---")
 gmsh.initialize() # start the gmsh session
 gmsh.model.add("KornilovCase") # add the model name
-mesh_resolution = 0.2e-3 # specify mesh resolution
 # locate the points of the 2D geometry: [m]
 p1 = gmsh.model.geo.addPoint(0, 0, 0, mesh_resolution)  
-p2 = gmsh.model.geo.addPoint(0, 2.5e-3, 0, mesh_resolution)
-p3 = gmsh.model.geo.addPoint(10e-3, 2.5e-3, 0, mesh_resolution)
-p4 = gmsh.model.geo.addPoint(10e-3, 1e-3, 0, mesh_resolution/4) # refine the mesh at this point
-p5 = gmsh.model.geo.addPoint(11e-3, 1e-3, 0, mesh_resolution/4)
-p6 = gmsh.model.geo.addPoint(11e-3, 2.5e-3, 0, mesh_resolution)
-p7 = gmsh.model.geo.addPoint(37e-3, 2.5e-3, 0, mesh_resolution)
+p2 = gmsh.model.geo.addPoint(0, plenum_height, 0, mesh_resolution)
+p3 = gmsh.model.geo.addPoint(plenum_length, plenum_height, 0, mesh_resolution)
+p4 = gmsh.model.geo.addPoint(plenum_length, slit_height, 0, mesh_resolution/4) # refine the mesh at this point
+p5 = gmsh.model.geo.addPoint(11e-3, slit_height, 0, mesh_resolution/4)
+p6 = gmsh.model.geo.addPoint(11e-3, plenum_height, 0, mesh_resolution)
+p7 = gmsh.model.geo.addPoint(37e-3, plenum_height, 0, mesh_resolution)
 p8 = gmsh.model.geo.addPoint(37e-3, 0, 0, mesh_resolution)
 # create outlines by connecting points
 l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
@@ -107,10 +112,16 @@ boundary_conditions_hom = {1:  {'Neumann'}, # inlet
                            3:  {'Neumann'}, # upper combustion chamber and slit wall
                            4:  {'Neumann'}, # lower symmetry boundary
                            5:  {'Neumann'}} # upper plenum wall
-# set the polynomial degree of the base function of the function space
-degree = 1 # the higher the degree, the longer the calulation takes but the more precise it is
+# decide which case is used -homogeneous or inhomogeneous
+if homogeneous_case: # homogeneous case
+    T_output = kparams.T_in
+    Rho_output = kparams.rho_u
+else: # inhomogeneous case
+    T_output = kparams.T_out
+    Rho_output = kparams.rho_d
+
 # define temperature gradient function in geometry
-T = kparams.temperature_step_gauss_plane(mesh, kparams.x_f, kparams.T_in, kparams.T_out, kparams.amplitude, kparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
+T = kparams.temperature_step_gauss_plane(mesh, kparams.x_f, kparams.T_in, T_output, kparams.amplitude, kparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
 c = sound_speed(T)
 # calculate the passive acoustic matrices
@@ -123,11 +134,18 @@ print("\n--- ASSEMBLING FLAME MATRIX ---")
 FTF = stateSpace(kparams.S1, kparams.s2, kparams.s3, kparams.s4)
 # define input functions for the flame matrix
 # density function:
-rho = kparams.rhoFunctionPlane(mesh, kparams.x_f, kparams.a_f, kparams.rho_d, kparams.rho_u, kparams.amplitude, kparams.sig, kparams.limit)
-# measurement function:
-w = kparams.gaussianFunctionHplane(mesh, kparams.x_r, kparams.a_r, kparams.amplitude, kparams.sig) 
-# heat release rate function:
-h = kparams.gaussianFunctionHplane(mesh, kparams.x_f, kparams.a_f, kparams.amplitude, kparams.sig) 
+rho = kparams.rhoFunctionPlane(mesh, kparams.x_f, kparams.a_f, Rho_output, kparams.rho_u, kparams.amplitude, kparams.sig, kparams.limit)
+
+if homogeneous_case:
+    # measurement function:
+    w = kparams.gaussianFunctionHplaneHomogenous(mesh, kparams.x_r, kparams.a_r, kparams.amplitude, kparams.sig) 
+    # heat release rate function:
+    h = kparams.gaussianFunctionHplaneHomogenous(mesh, kparams.x_f, kparams.a_f, kparams.amplitude, kparams.sig) 
+else:
+    w = kparams.gaussianFunctionHplane(mesh, kparams.x_r, kparams.a_r, kparams.amplitude, kparams.sig) 
+    # heat release rate function:
+    h = kparams.gaussianFunctionHplane(mesh, kparams.x_f, kparams.a_f, kparams.amplitude, kparams.sig) 
+
 # calculate the flame matrix
 D = DistributedFlameMatrix(mesh, w, h, rho, T, kparams.q_0, kparams.u_b, FTF, degree=degree, gamma=kparams.gamma)
 
@@ -136,7 +154,6 @@ D = DistributedFlameMatrix(mesh, w, h, rho, T, kparams.q_0, kparams.u_b, FTF, de
 print("\n--- STARTING NEWTON METHOD ---")
 # set the target (expected angular frequency of the system)
 # unit of target: ([Hz])*2*pi = [rad/s] 
-frequ = 5000 # 6000 Hz
 target = (frequ)*2*np.pi # 6000 Hz
 # LRF:   GrowthRate + Frequ*j                   Re(w) + Im(w)
 # HelmX: Frequ + GrowthRate*j                   Im(w) - Re(w)
@@ -192,20 +209,19 @@ plenum_node_indices = []
 # choose points which have smaller x coordinate then 10mm or have x coordinate of 10mm and y coordinate greater than 1mm
 # these are all the points in the plenum without the slit entry
 for i in range(len(xcoords)):
-    if (xcoords[i] < 0.01) or (xcoords[i] == 0.01 and ycoords[i] > 0.001):
+    if (xcoords[i] < plenum_length) or (xcoords[i] == plenum_length and ycoords[i] > slit_height):
         plenum_node_indices.append(i) # store the index of the plenum nodes in this array
 # perturb the chosen mesh points slightly in y direction
-perturbation = 0.0001# perturbation distance
 # perturbation is percent based on the y-coordinate
-ycoords[plenum_node_indices] += ycoords[plenum_node_indices] / 0.0025 * perturbation
+ycoords[plenum_node_indices] += ycoords[plenum_node_indices] / plenum_height * perturbation
 # update node y coordinates in mesh from the perturbed points and the unperturbed original points
 node_coords[1::3] = ycoords
 # update node positions
 for tag, new_coords in zip(node_tags, node_coords.reshape(-1,3)):
     gmsh.model.mesh.setNode(tag, new_coords, [])
 # update point positions 
-gmsh.model.setCoordinates(p2, 0, 2.5e-3/ 0.0025 * perturbation + 2.5e-3, 0)
-gmsh.model.setCoordinates(p3, 10e-3, 2.5e-3/ 0.0025 * perturbation + 2.5e-3, 0)
+gmsh.model.setCoordinates(p2, 0, perturbation + plenum_height, 0)
+gmsh.model.setCoordinates(p3, plenum_length, perturbation + plenum_height, 0)
 # optionally launch GUI to see the results
 # if '-nopopup' not in sys.argv:
 #    gmsh.fltk.run()
@@ -222,7 +238,7 @@ perturbed_mesh, perturbed_subdomains, perturbed_facet_tags = perturbed_Kornilov.
 perturbed_Kornilov.getInfo()
 
 # define temperature gradient function in geometry
-T = kparams.temperature_step_gauss_plane(perturbed_mesh, kparams.x_f, kparams.T_in, kparams.T_out, kparams.amplitude, kparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
+T = kparams.temperature_step_gauss_plane(perturbed_mesh, kparams.x_f, kparams.T_in, T_output, kparams.amplitude, kparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
 c = sound_speed(T)
 # calculate the passive acoustic matrices
@@ -234,12 +250,16 @@ print("\n--- REASSEMBLING FLAME MATRIX ---")
 # using statespace model to define the flame transfer function
 FTF = stateSpace(kparams.S1, kparams.s2, kparams.s3, kparams.s4)
 # define input functions for the flame matrix
-# density function:
-rho = kparams.rhoFunctionPlane(perturbed_mesh, kparams.x_f, kparams.a_f, kparams.rho_d, kparams.rho_u, kparams.amplitude, kparams.sig, kparams.limit)
-# measurement function:
-w = kparams.gaussianFunctionHplane(perturbed_mesh, kparams.x_r, kparams.a_r, kparams.amplitude, kparams.sig) 
-# heat release rate function:
-h = kparams.gaussianFunctionHplane(perturbed_mesh, kparams.x_f, kparams.a_f, kparams.amplitude, kparams.sig) 
+rho = kparams.rhoFunctionPlane(perturbed_mesh, kparams.x_f, kparams.a_f, Rho_output, kparams.rho_u, kparams.amplitude, kparams.sig, kparams.limit)
+if homogeneous_case:
+    # measurement function:
+    w = kparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, kparams.x_r, kparams.a_r, kparams.amplitude, kparams.sig) 
+    # heat release rate function:
+    h = kparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, kparams.x_f, kparams.a_f, kparams.amplitude, kparams.sig) 
+else:
+    w = kparams.gaussianFunctionHplane(perturbed_mesh, kparams.x_r, kparams.a_r, kparams.amplitude, kparams.sig) 
+    # heat release rate function:
+    h = kparams.gaussianFunctionHplane(perturbed_mesh, kparams.x_f, kparams.a_f, kparams.amplitude, kparams.sig) 
 # calculate the flame matrix
 D = DistributedFlameMatrix(perturbed_mesh, w, h, rho, T, kparams.q_0, kparams.u_b, FTF, degree=degree, gamma=kparams.gamma)
 
@@ -247,36 +267,52 @@ D = DistributedFlameMatrix(perturbed_mesh, w, h, rho, T, kparams.q_0, kparams.u_
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
 print("\n--- CALCULATING SHAPE DERIVATIVES ---")
 print("- calculate perturbed matrices")
-print("- matrix A...")
 diff_A = perturbed_matrices.A - matrices.A
-print("- matrix C...")
 diff_C = perturbed_matrices.C - matrices.C
 
-print("- calculate shape derivative")
-# using formula of numeric shape derivative
-# split in different parts because calculation is too long
+# using formula of numeric/discrete shape derivative
 print("- numerator addition of matrices...")
-numerator1 =  (diff_A + omega_dir**2 * diff_C) 
-print("- numerator multiplication 1...")
-numerator2 = np.dot(p_adj, numerator1)
-print("- numerator multiplication 2...")
-numerator3 = np.dot(numerator2, p_dir)
+Mat_n = diff_A + (omega_dir)**2 * diff_C
+
+y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector to store the result of matrix-vector multiplication
+Mat_n.mult(p_dir.vector, y) # multiply the matrix with the direct eigenfunction
+# conjugate vector before dot product
+#y = np.conj(y.getArray())
+#conjugated_y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector
+#conjugated_y.setValues(range(Mat_n.getSize()[0]), y) # store the conjugated values
+#conjugated_y.assemble()
+p_adj_conj = conjugate_function(p_adj)
+# dot product
+numerator = p_adj_conj.vector.dot(y)
+
+# assemble flame matrix
+D.assemble_submatrices('direct') # assemble direct flame matrix
 print("- denominator...")
-denominator = (p_adj * (-2*omega_dir*matrices.C + D.get_derivative(omega_dir, 'direct')) * p_dir)
+Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir)
+z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
+Mat_d.mult(p_dir.vector, z)
+# conjugate vector before dot product
+# z = np.conj(z.getArray())
+# conjugated_z = PETSc.Vec().createSeq(Mat_d.getSize()[0]) # create empty vector
+# conjugated_z.setValues(range(Mat_d.getSize()[0]), z) # store the conjugated values
+# conjugated_z.assemble()
+p_adj_conj = conjugate_function(p_adj)
+# dot product
+denominator = p_adj_conj.vector.dot(z)
 print("- total shape derivative...")
-derivative = numerator2 / denominator
+derivative = numerator / denominator
 
 
 #--------------------------FINALIZING-----------------------------#
 print("\n")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz")
-print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi)} + {round(target.imag/2/np.pi)}j Hz")
-print(f"---> \033[1mShape Derivative =\033[0m {derivative}")
+print(f"---> \033[1mMesh Resolution =\033[0m {mesh_resolution}")
+print(f"---> \033[1mPolynomial Degree =\033[0m {degree}")
+print(f"---> \033[1mPerturbation Distance =\033[0m {perturbation} m")
+print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(target.imag/2/np.pi,4)}j Hz")
+print(f"---> \033[1mShape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation,8)} + {round(derivative.imag/2/np.pi/perturbation,8)}j")
 # close the gmsh session which was required to run for calculating shape derivatives
 gmsh.finalize()
 # mark the processing time:
 if MPI.COMM_WORLD.rank == 0:
     print("Total Execution Time: ", datetime.datetime.now()-start_time)
-
-# Finalize MPI
-MPI.Finalize()
