@@ -115,7 +115,7 @@ class FlameMatrix:
     
     def get_derivative(self, omega):
         info("- Assembling derivative of matrix D..")
-        #print("- FTF derivative:", self.FTF.derivative(omega))
+        print("- FTF derivative:", self.FTF.derivative(omega))
         dD_domega = self.FTF.derivative(omega) * self._D_ij
         info("- Derivative of matrix D is assembled.")
         return dD_domega

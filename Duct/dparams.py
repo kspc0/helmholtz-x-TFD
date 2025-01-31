@@ -6,6 +6,7 @@ from dolfinx.fem import Function, FunctionSpace
 
 from helmholtz_x.dolfinx_utils import normalize, unroll_dofmap
 from helmholtz_x.parameters_utils import sound_speed_variable_gamma, sound_speed
+import FTFMatrices
 
 # set path to write files
 path = os.path.dirname(os.path.abspath(__file__))
@@ -25,12 +26,12 @@ c_amb = sqrt(gamma*p_amb/rho_amb)  # [m/s] ambient speed of sound 343,11426662
 ### density, temperature and speed of sound
 # input and output density
 rho_u = rho_amb  # [kg/m^3] -> 1,189187904 ~1.2
-rho_d = 0.17  # [kg/m^3]
+rho_d = 0.17 # inhomogenous case  # [kg/m^3]
 # input and output temperature
 T_in = p_amb/(r_gas*rho_u)  # [K] -> 293
 T_out = p_amb/(r_gas*rho_d)  # [K] -> 2049
 # input and output speed of sound
-c_in = sqrt(gamma*p_amb/rho_u)  # [kg/m^3] -> 343
+c_in = sqrt(gamma*p_amb/rho_u)  # [kg/m^3] -> 343.114266
 c_out = sqrt(gamma*p_amb/rho_d)  # [kg/m^3] -> 910
 
 # No reflection coefficients for boundaries
@@ -49,13 +50,13 @@ s4 = np.array([[0]]) # d
 d = 1e-3 # used to dimension the mesh between scale 1m and scale 1e-3m
 ### Flame location
 # flame location in 2D
-x_f = np.array([[13*d, 0.0, 0.0]])  # [m] flame located at roughly 13mm
-a_f = 0.5*d # [m] thickness of flame
+x_f = np.array([[250*d, 0.0, 0.0]])  # [m] flame located at roughly 13mm in Kornilov Case
+a_f = 25*d # [m] thickness of flame
 # reference point coordinates - needed?
-x_r = np.array([[5*d, 0., 0.]])  # [m] reference located at 5mm
-a_r = 0.5*d  # [m] thickness of reference
-# gauss function dimensions
-sig = 0.8*d # [m] thickness of flame gauss function
+x_r = np.array([[200*d, 0., 0.]])  # [m] reference located at 5mm in Kornilov Case
+a_r = 25*d  # [m] thickness of reference
+# gauss function dimensions for a side view gaussian function
+sig = 80*d # [m] thickness of flame gauss function
 amplitude = 4*d # [m] height of flame gauss function
 limit = 1*d # [m] horizontal separation for breakpoint of density function
 
@@ -142,6 +143,15 @@ def gaussianFunctionHplane(mesh, x_f, a_f, amplitude, sig,degree=1):
     ndim = mesh.geometry.dim # comment this to 1 for Kornilov Case because its 2D and we want 1D gauss functions
     w.interpolate(lambda x: gaussianHplane(x[0],x_f,a_f,ndim))
     w = normalize(w)
+    return w
+
+def gaussianFunctionHplaneHomogenous(mesh, x_f, a_f, amplitude, sig,degree=1):
+    V = FunctionSpace(mesh, ("CG", degree))
+    w = Function(V)
+    x_f = x_f[0]
+    x_f = x_f[0]
+    ndim = mesh.geometry.dim # comment this to 1 for Kornilov Case because its 2D and we want 1D gauss functions
+    w.interpolate(lambda x: np.zeros_like(x[0]))
     return w
 
 # point function

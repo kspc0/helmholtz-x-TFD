@@ -225,12 +225,13 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
         print("- Dirichlet Shape Gradient")
         G_neu = - c**2 * dot(grad(p_adj_conj), normal) * dot(grad(p_dir), normal) # for Dirichlet
         #G_neu = c**2 * diff(p_adj_conj, normal) * diff(p_dir, normal) # for Dirichlet
+    elif physical_facet_tag == 5:
+        G_neu = div(p_adj_conj * c**2 * grad(p_dir)) # for Neumann
     else:
         print("Error - shape gradient needs definition of according boundary")
 
     # print("type of Gradient object: ",type(G_neu))  
 
-    derivatives = {}
     print("- assembling shape derivatives of border")
     # calculate the local diplacement field V at the border
     V_ffd = ffd_displacement_vector_rect_full_border(geometry, physical_facet_tag, norm_vector, deg=1)
@@ -248,8 +249,8 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
     shape_derivative_form = form(inner(V_ffd, normal) * G_neu * ds(physical_facet_tag))
     eig = assemble_scalar(shape_derivative_form)
     # store the solution in the array
-    derivatives[1] = eig
-    print("- shape derivative of border calculated:", derivatives[1])
+    derivatives = eig
+    print("- shape derivative of border calculated:", derivatives)
     return derivatives
 
 

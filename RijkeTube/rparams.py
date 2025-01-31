@@ -12,22 +12,22 @@ path = os.path.dirname(os.path.abspath(__file__))
 
 #--------------------------------PARAMETERS------------------------------------#
 ### classic physical constants and variables
-r_gas = 287.  # [J/kg/K] ideal gas constant
+r_gas = 287.1  # [J/kg/K] ideal gas constant
 gamma = 1.4  # [/] ratio of specific heat capacities cp/cv
 
 ### properties of the surroundings
 p_amb = 1e5  # [Pa] ambient pressure
 T_amb = 293 #293  # [K] ambient temperature
-rho_amb = p_amb/(r_gas*T_amb)  # [kg/m^3] ambient density -> 1,189187904 ~1.2
+rho_amb = 1.22  # [kg/m^3] ambient density -> 1,189187904 ~1.2
 c_amb = sqrt(gamma*p_amb/rho_amb)  # [m/s] ambient speed of sound 343,11426662
 
 ### density, temperature and speed of sound
 # input and output density
 rho_u = rho_amb  # [kg/m^3] -> 1,189187904 ~1.2
-rho_d = 0.17 # inhomogenous case  # [kg/m^3]
+rho_d = 0.85 # inhomogenous case  # [kg/m^3]
 # input and output temperature
-T_in = p_amb/(r_gas*rho_u)  # [K] -> 293
-T_out = p_amb/(r_gas*rho_d)  # [K] -> 2049
+T_in = 285.6  # [K] -> 293
+T_out = 409.92  # [K] -> 2049
 # input and output speed of sound
 c_in = sqrt(gamma*p_amb/rho_u)  # [kg/m^3] -> 343.114266
 c_out = sqrt(gamma*p_amb/rho_d)  # [kg/m^3] -> 910
@@ -37,13 +37,16 @@ R_in = 0   #-0.23123+0.123j # [/]
 R_out = 0   #-0.454-0.2932j  # [/] 
 
 ### Flame transfer function
-u_b = 0.4 # [m/s] mean flow velocity (bulk velocity)
-q_0 = 2577.16 # [W] heat flux density: integrated value dQ from open foam
+u_b = 0.1006 # [m/s] mean flow velocity (bulk velocity)
+q_0 = -27.0089 # [W] heat flux density: integrated value dQ from open foam
 # load the state-space matrices from data saved as csv tables
-S1 = np.loadtxt(path+'/FTFMatrices/S1.csv', delimiter=',') # A
-s2 = np.loadtxt(path+'/FTFMatrices/s2.csv', delimiter=',') # b
-s3 = np.loadtxt(path+'/FTFMatrices/s3.csv', delimiter=',') # c
-s4 = np.array([[0]]) # d
+# S1 = np.loadtxt(path+'/FTFMatrices/S1.csv', delimiter=',') # A
+# s2 = np.loadtxt(path+'/FTFMatrices/s2.csv', delimiter=',') # b
+# s3 = np.loadtxt(path+'/FTFMatrices/s3.csv', delimiter=',') # c
+# s4 = np.array([[0]]) # d
+# FTF:
+n = 0.1 / (np.pi * 0.047/4) # interaction index scaled for 2D case
+tau = 0.0015
 
 d = 1e-3 # used to dimension the mesh between scale 1m and scale 1e-3m
 ### Flame location

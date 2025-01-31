@@ -32,6 +32,14 @@ KornilovCase/PlotEigenvalues/
 KornilovCase/Results/
 
 # ignore plotting files
-KornilovCase/plot*
+Plots/
 # KornilovCase/plot_derivatives_comparison.py
 # KornilovCase/plot_compare_shape_derivatives.py
+
+RijkeTube/Results
+RijkeTube/Meshes
+RijkeTube/InputFunctions
+
+Duct/Results
+Duct/Meshes
+Duct/InputFunctions

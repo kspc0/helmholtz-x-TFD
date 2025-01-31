@@ -1,6 +1,6 @@
 '''
-objective: calculate shape derivatives for the Kornilov case using continuous adjoint approach
-with full border displacement of the upper plenum wall
+objective: calculate shape derivative for a simple 2D rijke tube using continuous adjoint approach
+with full border displacement of the inlet
 '''
 
 import datetime
@@ -12,12 +12,12 @@ import numpy as np
 from mpi4py import MPI
 
 # Parameters of the problem
-import kparams
+import rparams
 # HelmholtzX utilities
 from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh # to write mesh data as files
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
 from helmholtz_x.acoustic_matrices import AcousticMatrices # to assemble the acoustic matrices for discrete Helm. EQU
-from helmholtz_x.flame_transfer_function import stateSpace # to define the flame transfer function
+from helmholtz_x.flame_transfer_function import nTau # to define the flame transfer function
 from helmholtz_x.flame_matrices import DistributedFlameMatrix # to define the flame matrix for discrete Helm. EQU
 from helmholtz_x.eigensolvers import fixed_point_iteration, eps_solver, newtonSolver # to solve the system
 from helmholtz_x.dolfinx_utils import absolute # to get the absolute value of a function
@@ -28,52 +28,43 @@ start_time = datetime.datetime.now()
 # set variables to load and save files
 path = os.path.dirname(os.path.abspath(__file__))
 mesh_dir = "/Meshes" # folder of mesh file
-mesh_name = "/KornilovMesh" # name of the mesh file
+mesh_name = "/RijkeMesh" # name of the mesh file
 results_dir = "/Results" # folder for saving results
 
 
 #--------------------------MAIN PARAMETERS-------------------------#
-mesh_resolution = 0.2e-3 # specify mesh resolution
-# duct_length = 1 # length of the duct
-# duct_height = 0.1 # height of the duct
-degree = 1 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 200 # where to expect first mode in Hz
+mesh_resolution = 0.008 # specify mesh resolution
+tube_length = 1 # length of the duct
+tube_height = 0.1 #0.047 # height of the duct
+degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
+frequ = 100 # where to expect first mode in Hz
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 
 
 #--------------------------CREATE MESH----------------------------#
 print("\n--- CREATING MESH ---")
 gmsh.initialize() # start the gmsh session
-gmsh.model.add("KornilovCase") # add the model name
+gmsh.model.add("RijkeTube") # add the model name
 # locate the points of the 2D geometry: [m]
 p1 = gmsh.model.geo.addPoint(0, 0, 0, mesh_resolution)  
-p2 = gmsh.model.geo.addPoint(0, 2.5e-3, 0, mesh_resolution)
-p3 = gmsh.model.geo.addPoint(10e-3, 2.5e-3, 0, mesh_resolution)
-p4 = gmsh.model.geo.addPoint(10e-3, 1e-3, 0, mesh_resolution/4) # refine the mesh at this point
-p5 = gmsh.model.geo.addPoint(11e-3, 1e-3, 0, mesh_resolution/4)
-p6 = gmsh.model.geo.addPoint(11e-3, 2.5e-3, 0, mesh_resolution)
-p7 = gmsh.model.geo.addPoint(37e-3, 2.5e-3, 0, mesh_resolution)
-p8 = gmsh.model.geo.addPoint(37e-3, 0, 0, mesh_resolution)
+p2 = gmsh.model.geo.addPoint(0, tube_height, 0, mesh_resolution) # 0.1m high
+p3 = gmsh.model.geo.addPoint(tube_length, tube_height, 0, mesh_resolution) # 1m long
+p4 = gmsh.model.geo.addPoint(tube_length, 0, 0, mesh_resolution)
 # create outlines by connecting points
 l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
-l2 = gmsh.model.geo.addLine(p2, p3) # upper plenum wall
-l3 = gmsh.model.geo.addLine(p3, p4) # slit wall
-l4 = gmsh.model.geo.addLine(p4, p5) # slit wall
-l5 = gmsh.model.geo.addLine(p5, p6) # slit wall
-l6 = gmsh.model.geo.addLine(p6, p7) # upper combustion chamber wall
-l7 = gmsh.model.geo.addLine(p7, p8) # outlet boundary
-l8 = gmsh.model.geo.addLine(p8, p1) # lower symmetry boundary
+l2 = gmsh.model.geo.addLine(p2, p3) # upper wall
+l3 = gmsh.model.geo.addLine(p3, p4) # outlet boundary
+l4 = gmsh.model.geo.addLine(p4, p1) # lower wall
 # create extra points to outline the plenum (needed for shape derivation of upper plenum wall)
 # create curve loops for surface
-loop1 = gmsh.model.geo.addCurveLoop([l1,l2,l3,l4,l5,l6,l7,l8]) # entire geometry
+loop1 = gmsh.model.geo.addCurveLoop([l1,l2,l3,l4]) # entire geometry
 # create surfaces from the curved loops
 surface1 = gmsh.model.geo.addPlaneSurface([loop1]) # surface of entire geometry
 # assign physical tags for 1D boundaries
 gmsh.model.addPhysicalGroup(1, [l1], tag=1) # inlet boundary
-gmsh.model.addPhysicalGroup(1, [l7], tag=2) # outlet boundary
-gmsh.model.addPhysicalGroup(1, [l3,l4,l5,l6], tag=3) # upper combustion chamber and slit wall
-gmsh.model.addPhysicalGroup(1, [l8], tag=4) # lower symmetry boundary
-gmsh.model.addPhysicalGroup(1, [l2], tag=5) # upper wall of plenum
+gmsh.model.addPhysicalGroup(1, [l3], tag=2) # outlet boundary
+gmsh.model.addPhysicalGroup(1, [l4], tag=3) # lower wall
+gmsh.model.addPhysicalGroup(1, [l2], tag=4) # upper wall
 # assign physical tag for 2D surface
 gmsh.model.addPhysicalGroup(2, [surface1], tag=1)
 # create 2D mesh
@@ -89,29 +80,28 @@ write_xdmf_mesh(path+mesh_dir+mesh_name,dimension=2) # save as .xdmf file
 
 #--------------------------LOAD MESH DATA-------------------------#
 print("\n--- LOADING MESH ---")
-Kornilov = XDMFReader(path+mesh_dir+mesh_name)
-mesh, subdomains, facet_tags = Kornilov.getAll() # mesh, domains and tags
-Kornilov.getInfo()
+Rijke = XDMFReader(path+mesh_dir+mesh_name)
+mesh, subdomains, facet_tags = Rijke.getAll() # mesh, domains and tags
+Rijke.getInfo()
 
 
 #--------------------ASSEMBLE PASSIVE MATRICES--------------------#
 print("\n--- ASSEMBLING PASSIVE MATRICES ---")
 # set boundary conditions case
-boundary_conditions     = {1:  {'Neumann'}, # inlet
-                           2:  {'Dirichlet'}, # outlet
-                           3:  {'Neumann'}, # upper combustion chamber and slit wall
-                           4:  {'Neumann'}, # lower symmetry boundary
-                           5:  {'Neumann'}} # upper plenum wall
+boundary_conditions =  {1:  {'Neumann'}, # inlet
+                        2:  {'Dirichlet'}, # outlet
+                        3:  {'Neumann'}, # upper wall
+                        4:  {'Neumann'}} # lower wall
 # initialize parameters for homogeneous or inhomogeneous case
 if homogeneous_case: # homogeneous case
-    T_output = kparams.T_in
-    Rho_output = kparams.rho_u
+    T_output = rparams.T_in
+    Rho_output = rparams.rho_u
 else: # inhomogeneous case
-    T_output = kparams.T_out
-    Rho_output = kparams.rho_d
+    T_output = rparams.T_out
+    Rho_output = rparams.rho_d
 
 # define temperature gradient function in geometry
-T = kparams.temperature_step_gauss_plane(mesh, kparams.x_f, kparams.T_in, T_output, kparams.amplitude, kparams.sig)
+T = rparams.temperature_step_gauss_plane(mesh, rparams.x_f, rparams.T_in, T_output, rparams.amplitude, rparams.sig)
 # calculate the sound speed function from temperature
 c = sound_speed(T)
 # calculate the passive acoustic matrices
@@ -120,20 +110,20 @@ matrices = AcousticMatrices(mesh, facet_tags, boundary_conditions, T , degree = 
 
 #-------------------ASSEMBLE FLAME TRANSFER MATRIX----------------#
 print("\n--- ASSEMBLING FLAME MATRIX ---")
-# using statespace model to define the flame transfer function
-FTF = stateSpace(kparams.S1, kparams.s2, kparams.s3, kparams.s4)
+# using nTau model to define the flame transfer function
+FTF = nTau(rparams.n, rparams.tau)
 # define input functions for the flame matrix
 # density function:
-rho = kparams.rhoFunctionPlane(mesh, kparams.x_f, kparams.a_f,  Rho_output, kparams.rho_u, kparams.amplitude, kparams.sig, kparams.limit)
+rho = rparams.rhoFunctionPlane(mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u, rparams.amplitude, rparams.sig, rparams.limit)
 # use differnet functions depending on the case for heat release h and measurement w
 if homogeneous_case:
-    w = kparams.gaussianFunctionHplaneHomogenous(mesh, kparams.x_r, kparams.a_r, kparams.amplitude, kparams.sig) 
-    h = kparams.gaussianFunctionHplaneHomogenous(mesh, kparams.x_f, kparams.a_f, kparams.amplitude, kparams.sig) 
+    w = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
+    h = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
 else:
-    w = kparams.gaussianFunctionHplane(mesh, kparams.x_r, kparams.a_r, kparams.amplitude, kparams.sig) 
-    h = kparams.gaussianFunctionHplane(mesh, kparams.x_f, kparams.a_f, kparams.amplitude, kparams.sig) 
+    w = rparams.gaussianFunctionHplane(mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
+    h = rparams.gaussianFunctionHplane(mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
 # calculate the flame matrix
-D = DistributedFlameMatrix(mesh, w, h, rho, T, kparams.q_0, kparams.u_b, FTF, degree=degree, gamma=kparams.gamma)
+D = DistributedFlameMatrix(mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
 
 
 #-------------------SOLVE THE DISCRETE SYSTEM---------------------#
@@ -182,20 +172,20 @@ xdmf_writer(path+results_dir+"/p_adj_abs", mesh, absolute(p_adj))
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
 print("\n--- CALCULATING SHAPE DERIVATIVES ---")
 # 1 for inlet
-# 5 for plenum upper wall
-physical_facet_tags = {1: 'inlet', 5: 'upper plenum'}
-selected_facet_tag = 5 # tag of the wall to be displaced
-# [1,0] for inlet
-# [0,1] for plenum
-norm_vector = [0,1] # normal outside vector of the wall to be displaced
+# 2 for outlet
+physical_facet_tags = {1: 'inlet', 2: 'outlet'}
+selected_facet_tag = 2 # tag of the wall to be displaced
+# [-1,0] for inlet
+# [1,0] for outlet
+norm_vector_inlet = [1,0] # normal outside vector of the wall to be displaced
 
 # visualize example displacement field for full displaced border
-V_ffd = ffd_displacement_vector_rect_full_border(Kornilov, selected_facet_tag, norm_vector, deg=1)
+V_ffd = ffd_displacement_vector_rect_full_border(Rijke, selected_facet_tag, norm_vector_inlet, deg=1)
 xdmf_writer(path+"/InputFunctions/V_ffd", mesh, V_ffd)
 
 # calculate the shape derivatives for the border
 print("- calculating shape derivative")
-derivative = ShapeDerivativesFFDRectFullBorder(Kornilov, selected_facet_tag, norm_vector, omega_dir, p_dir, p_adj, c, matrices, D)
+derivative = ShapeDerivativesFFDRectFullBorder(Rijke, selected_facet_tag, norm_vector_inlet, omega_dir, p_dir, p_adj, c, matrices, D)
 
 
 #--------------------------FINALIZING-----------------------------#
@@ -207,7 +197,7 @@ else:
     stability = 'stable'
 print(f"---> \033[1mDisplaced Wall\033[0m: {physical_facet_tags[selected_facet_tag]}")
 print(f"---> \033[1mMesh Resolution =\033[0m {mesh_resolution}")
-print(f"---> \033[1mDimensions =\033[0m {None}m, {None} m")
+print(f"---> \033[1mDimensions =\033[0m {tube_length}m, {tube_height} m")
 print(f"---> \033[1mPolynomial Degree of FEM =\033[0m {degree}")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz ")
 print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
