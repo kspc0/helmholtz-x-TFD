@@ -1,17 +1,21 @@
 Modification of the helmholtz-x repo from Ekrem Ekici for the purpose of calculation of numeric shape derivatives on the Kornilov case
 
-- helmholtz-x folder contains a slightly modified version of the HelmholtzX toolbox from Ekrem Ekici
-- KornilovCase folder contains python programs for calculating shape derivative in continuous and analytic methods
+# Folder Archictecture
+## Tools and Data
+- /helmholtz-x: contains a slightly modified version of the HelmholtzX toolbox from Ekrem Ekici
+- /FTFMatrices: data for Kornilov Flame Transfer Function in state space format
+## Test Cases (prefix)
+- /RijkeTube: 2D Rijke tube geometry (r)
+- /Duct: rectangular 2D duct geometry (d)
+- /KornilovCase: Kornilov test case geometry (k)
 
-# Duct
-simple case of duct uses prefix "d" before filenames
-- dmain_continuous calculates shape derivative of a duct using continuous formula from Ekici dissertation
-- dmain_discrete calculates shape derivative of a duct using discrete formula derived by Gregoire
+# Programs
+every test case has 3 programs:  
+- ()main_continuous: calculates shape derivative using continuous formula from Ekici dissertation
+- ()main_discrete: calculates shape derivative using discrete formula derived by Gregoire Varillon
+- ()params: defines up input functions and parameters for the testcase
 
-used for comparing methods to analytical shape derivative and varify the methods
-
-
-# Kornilov
-case of Kornilov geometry uses prefix "k" before filenames
-- dmain_continuous calculates shape derivative of a duct using continuous formula from Ekici dissertation
-- dmain_discrete calculates shape derivative of a duct using discrete formula derived by Gregoire
+# Set Up
+to set up the code on your machine:
+- install correct conda environment
+- create subfolders called "Meshes", "Results", "InputFunctions" within each testcase folder
