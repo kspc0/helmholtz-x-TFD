@@ -18,7 +18,7 @@ import rparams
 from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh, load_xdmf_mesh # to write mesh data as files
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
 from helmholtz_x.acoustic_matrices import AcousticMatrices # to assemble the acoustic matrices for discrete Helm. EQU
-from helmholtz_x.flame_transfer_function import nTau # to define the flame transfer function
+from helmholtz_x.flame_transfer_function import nTau, stateSpace # to define the flame transfer function
 from helmholtz_x.flame_matrices import DistributedFlameMatrix # to define the flame matrix for discrete Helm. EQU
 from helmholtz_x.eigensolvers import fixed_point_iteration, eps_solver, newtonSolver # to solve the system
 from helmholtz_x.dolfinx_utils import absolute # to get the absolute value of a function
@@ -35,11 +35,11 @@ results_dir = "/Results" # folder for saving results
 
 
 #--------------------------MAIN PARAMETERS-------------------------#
-mesh_resolution = 0.01 # specify mesh resolution
-tube_length = 1 # length of the tube
-tube_height = 0.2 #0.047 # height of the tube
+mesh_resolution = 0.008 # specify mesh resolution
+tube_length = 1.75 # length of the tube
+tube_height = 0.047 # height of the tube
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 100 # where to expect first mode in Hz
+frequ = 115 # where to expect first mode in Hz
 perturbation = 0.001 # perturbation distance
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 perturbation_method_homogen = True # for only perturbing homogen part of duct, without flame
@@ -93,7 +93,7 @@ Rijke.getInfo()
 print("\n--- ASSEMBLING PASSIVE MATRICES ---")
 # set boundary conditions case
 boundary_conditions =  {1:  {'Neumann'}, # inlet
-                        2:  {'Dirichlet'}, # outlet
+                        2:  {'Neumann'}, # outlet
                         3:  {'Neumann'}, # upper wall
                         4:  {'Neumann'}} # lower wall
 # initialize parameters for homogeneous or inhomogeneous case
@@ -197,7 +197,7 @@ node_coords[0::3] = xcoords
 for tag, new_coords in zip(node_tags, node_coords.reshape(-1,3)):
     gmsh.model.mesh.setNode(tag, new_coords, [])
 # update point positions 
-gmsh.model.setCoordinates(p3, perturbation + tube_length, 0.1, 0)
+gmsh.model.setCoordinates(p3, perturbation + tube_length, tube_height, 0)
 gmsh.model.setCoordinates(p4, perturbation + tube_length, 0, 0)
 # optionally launch GUI to see the results
 # if '-nopopup' not in sys.argv:
@@ -224,16 +224,16 @@ perturbed_matrices = AcousticMatrices(perturbed_mesh, perturbed_facet_tags, boun
 
 #-------------------REASSEMBLE FLAME TRANSFER MATRIX----------------#
 print("\n--- REASSEMBLING FLAME MATRIX ---")
-# define input functions for the flame matrix
-rho = rparams.rhoFunctionPlane(perturbed_mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u, rparams.amplitude, rparams.sig, rparams.limit)
-if homogeneous_case:
-    w = rparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
-    h = rparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
-else:
-    w = rparams.gaussianFunctionHplane(perturbed_mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
-    h = rparams.gaussianFunctionHplane(perturbed_mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
+# # define input functions for the flame matrix
+# rho = rparams.rhoFunctionPlane(perturbed_mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u, rparams.amplitude, rparams.sig, rparams.limit)
+# if homogeneous_case:
+#     w = rparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
+#     h = rparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
+# else:
+#     w = rparams.gaussianFunctionHplane(perturbed_mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
+#     h = rparams.gaussianFunctionHplane(perturbed_mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
 # calculate the flame matrix
-D = DistributedFlameMatrix(perturbed_mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
+#D = DistributedFlameMatrix(perturbed_mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
 
 
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
@@ -244,8 +244,8 @@ diff_C = perturbed_matrices.C - matrices.C
 
 # using formula of numeric/discrete shape derivative
 print("- numerator addition of matrices...")
-omega_square = omega_dir.real**2 - omega_dir.imag**2 + 2j*omega_dir.real*omega_dir.imag
-Mat_n = diff_A + omega_square * diff_C 
+omega_square = omega_dir.real**2 - omega_dir.imag**2 + 2j*omega_dir.real*omega_dir.imag #use omega_adj here??
+Mat_n = diff_A + omega_square * diff_C
 
 y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector to store the result of matrix-vector multiplication
 Mat_n.mult(p_dir.vector, y) # multiply the matrix with the direct eigenfunction
@@ -258,6 +258,7 @@ numerator2 = vector_matrix_vector(p_adj.vector, Mat_n, p_dir.vector)
 D.assemble_submatrices('direct') # assemble direct flame matrix
 print("- denominator...")
 Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir)
+
 z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
 Mat_d.mult(p_dir.vector, z)
 p_adj_conj = conjugate_function(p_adj)
@@ -290,7 +291,7 @@ print(f"---> \033[1mPerturbation Distance =\033[0m {perturbation} m")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz ")
 print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
 print(f"---> \033[1mDiscrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi,8)} + {round(derivative.imag/2/np.pi,8)}j")
-print(f"---> \033[1mNormalized Discrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation/tube_length,8)} + {round(derivative.imag/2/np.pi/perturbation/tube_length,8)}j")
+print(f"---> \033[1mNormalized Discrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation,8)} + {round(derivative.imag/2/np.pi/perturbation,8)}j")
 # close the gmsh session which was required to run for calculating shape derivatives
 gmsh.finalize()
 # mark the processing time:

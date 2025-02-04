@@ -204,7 +204,7 @@ def ffd_displacement_vector_rect(geometry, FFDLattice, surface_physical_tag, i, 
 
 
 
-def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector, omega_dir, p_dir, p_adj, c, acousticMatrices, FlameMatrix):
+def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, selected_boundary_condition, norm_vector, omega_dir, p_dir, p_adj, c, acousticMatrices, FlameMatrix):
     # find the outward normal vector on the geometry outlines
     normal = FacetNormal(geometry.mesh)
     # define a measure used for integrating over the mesh's boundary
@@ -217,16 +217,13 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, norm_vector,
     p_adj_conj = conjugate_function(p_adj_norm)
 
     # calcualte the shape gradient G (scalar) for the geometry
-    if physical_facet_tag == 1:
+    if selected_boundary_condition == {'Neumann'}:
         print("- Neumann Shape Gradient")
         G_neu = div(p_adj_conj * c**2 * grad(p_dir)) # for Neumann
         #G_neu = p_adj_conj *c**2 * div(grad(p_dir)) # for Neumann alternative form
-    elif physical_facet_tag == 2:
+    elif selected_boundary_condition == {'Dirichlet'}:
         print("- Dirichlet Shape Gradient")
         G_neu = - c**2 * dot(grad(p_adj_conj), normal) * dot(grad(p_dir), normal) # for Dirichlet
-        #G_neu = c**2 * diff(p_adj_conj, normal) * diff(p_dir, normal) # for Dirichlet
-    elif physical_facet_tag == 5:
-        G_neu = div(p_adj_conj * c**2 * grad(p_dir)) # for Neumann
     else:
         print("Error - shape gradient needs definition of according boundary")
 

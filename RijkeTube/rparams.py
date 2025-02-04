@@ -9,6 +9,7 @@ from helmholtz_x.parameters_utils import sound_speed_variable_gamma, sound_speed
 
 # set path to write files
 path = os.path.dirname(os.path.abspath(__file__))
+parent_path = os.path.dirname(path)
 
 #--------------------------------PARAMETERS------------------------------------#
 ### classic physical constants and variables
@@ -40,10 +41,10 @@ R_out = 0   #-0.454-0.2932j  # [/]
 u_b = 0.1006 # [m/s] mean flow velocity (bulk velocity)
 q_0 = -27.0089 # [W] heat flux density: integrated value dQ from open foam
 # load the state-space matrices from data saved as csv tables
-# S1 = np.loadtxt(path+'/FTFMatrices/S1.csv', delimiter=',') # A
-# s2 = np.loadtxt(path+'/FTFMatrices/s2.csv', delimiter=',') # b
-# s3 = np.loadtxt(path+'/FTFMatrices/s3.csv', delimiter=',') # c
-# s4 = np.array([[0]]) # d
+S1 = np.loadtxt(parent_path+'/FTFMatrices/S1.csv', delimiter=',') # A
+s2 = np.loadtxt(parent_path+'/FTFMatrices/s2.csv', delimiter=',') # b
+s3 = np.loadtxt(parent_path+'/FTFMatrices/s3.csv', delimiter=',') # c
+s4 = np.array([[0]]) # d
 # FTF:
 n = 0.1 / (np.pi * 0.047/4) # interaction index scaled for 2D case
 tau = 0.0015
@@ -309,8 +310,8 @@ def temperature_step_gauss_plane(mesh, x_f, T_u, T_d,amplitude, sig, degree=1):
 if __name__ == '__main__':
     from helmholtz_x.io_utils import XDMFReader,xdmf_writer
     # get mesh data from saved file
-    Kornilov = XDMFReader("Meshes/KornilovMesh")
-    mesh, subdomains, facet_tags = Kornilov.getAll()
+    Rijke = XDMFReader("Meshes/RijkeMesh")
+    mesh, subdomains, facet_tags = Rijke.getAll()
     # create the functions with curved flames:
     # rho_func = rhoFunction(mesh, x_f, a_f, rho_d, rho_u, amplitude, sig, limit) # tanh density
     # w_func = gaussianFunction(mesh, x_r, a_r) # gauss measurement (original from HelmX)

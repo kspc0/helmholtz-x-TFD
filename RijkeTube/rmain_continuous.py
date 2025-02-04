@@ -17,7 +17,7 @@ import rparams
 from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh # to write mesh data as files
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
 from helmholtz_x.acoustic_matrices import AcousticMatrices # to assemble the acoustic matrices for discrete Helm. EQU
-from helmholtz_x.flame_transfer_function import nTau # to define the flame transfer function
+from helmholtz_x.flame_transfer_function import nTau, stateSpace # to define the flame transfer function
 from helmholtz_x.flame_matrices import DistributedFlameMatrix # to define the flame matrix for discrete Helm. EQU
 from helmholtz_x.eigensolvers import fixed_point_iteration, eps_solver, newtonSolver # to solve the system
 from helmholtz_x.dolfinx_utils import absolute # to get the absolute value of a function
@@ -34,10 +34,10 @@ results_dir = "/Results" # folder for saving results
 
 #--------------------------MAIN PARAMETERS-------------------------#
 mesh_resolution = 0.008 # specify mesh resolution
-tube_length = 1 # length of the duct
-tube_height = 0.1 #0.047 # height of the duct
+tube_length = 2.25 # length of the duct
+tube_height = 0.047 #0.047 # height of the duct
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 100 # where to expect first mode in Hz
+frequ = 80 # where to expect first mode in Hz
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 
 
@@ -89,7 +89,7 @@ Rijke.getInfo()
 print("\n--- ASSEMBLING PASSIVE MATRICES ---")
 # set boundary conditions case
 boundary_conditions =  {1:  {'Neumann'}, # inlet
-                        2:  {'Dirichlet'}, # outlet
+                        2:  {'Neumann'}, # outlet
                         3:  {'Neumann'}, # upper wall
                         4:  {'Neumann'}} # lower wall
 # initialize parameters for homogeneous or inhomogeneous case
@@ -175,6 +175,8 @@ print("\n--- CALCULATING SHAPE DERIVATIVES ---")
 # 2 for outlet
 physical_facet_tags = {1: 'inlet', 2: 'outlet'}
 selected_facet_tag = 2 # tag of the wall to be displaced
+selected_boundary_condition = boundary_conditions[selected_facet_tag]
+print("BOUNDARY:", selected_boundary_condition)
 # [-1,0] for inlet
 # [1,0] for outlet
 norm_vector_inlet = [1,0] # normal outside vector of the wall to be displaced
@@ -185,7 +187,7 @@ xdmf_writer(path+"/InputFunctions/V_ffd", mesh, V_ffd)
 
 # calculate the shape derivatives for the border
 print("- calculating shape derivative")
-derivative = ShapeDerivativesFFDRectFullBorder(Rijke, selected_facet_tag, norm_vector_inlet, omega_dir, p_dir, p_adj, c, matrices, D)
+derivative = ShapeDerivativesFFDRectFullBorder(Rijke, selected_facet_tag, selected_boundary_condition, norm_vector_inlet, omega_dir, p_dir, p_adj, c, matrices, D)
 
 
 #--------------------------FINALIZING-----------------------------#

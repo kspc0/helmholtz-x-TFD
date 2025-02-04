@@ -36,10 +36,10 @@ results_dir = "/Results" # folder for saving results
 
 #--------------------------MAIN PARAMETERS-------------------------#
 mesh_resolution = 0.008 # specify mesh resolution
-duct_length = 1 # length of the duct
+duct_length = 1.25 # length of the duct
 duct_height = 0.1 # height of the duct
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 100 # where to expect first mode in Hz
+frequ = 148 # where to expect first mode in Hz
 perturbation = 0.001 # perturbation distance
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 perturbation_method_homogen = True # for only perturbing homogen part of duct, without flame
@@ -197,7 +197,7 @@ node_coords[0::3] = xcoords
 for tag, new_coords in zip(node_tags, node_coords.reshape(-1,3)):
     gmsh.model.mesh.setNode(tag, new_coords, [])
 # update point positions 
-gmsh.model.setCoordinates(p3, perturbation + duct_length, 0.1, 0)
+gmsh.model.setCoordinates(p3, perturbation + duct_length, duct_height, 0)
 gmsh.model.setCoordinates(p4, perturbation + duct_length, 0, 0)
 # optionally launch GUI to see the results
 # if '-nopopup' not in sys.argv:
@@ -215,25 +215,25 @@ perturbed_mesh, perturbed_subdomains, perturbed_facet_tags = perturbed_Rijke.get
 perturbed_Rijke.getInfo()
 
 # define temperature gradient function in geometry
-T = dparams.temperature_step_gauss_plane(perturbed_mesh, dparams.x_f, dparams.T_in, T_output, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
+T_p = dparams.temperature_step_gauss_plane(perturbed_mesh, dparams.x_f, dparams.T_in, T_output, dparams.amplitude, dparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
-c = sound_speed(T)
+c_p = sound_speed(T_p)
 # calculate the passive acoustic matrices
-perturbed_matrices = AcousticMatrices(perturbed_mesh, perturbed_facet_tags, boundary_conditions, T , degree = degree) # very large, sparse matrices
+perturbed_matrices = AcousticMatrices(perturbed_mesh, perturbed_facet_tags, boundary_conditions, T_p , degree = degree) # very large, sparse matrices
 
 
 #-------------------REASSEMBLE FLAME TRANSFER MATRIX----------------#
 print("\n--- REASSEMBLING FLAME MATRIX ---")
 # define input functions for the flame matrix
-rho = dparams.rhoFunctionPlane(perturbed_mesh, dparams.x_f, dparams.a_f, Rho_output, dparams.rho_u, dparams.amplitude, dparams.sig, dparams.limit)
-if homogeneous_case:
-    w = dparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
-    h = dparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
-else:
-    w = dparams.gaussianFunctionHplane(perturbed_mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
-    h = dparams.gaussianFunctionHplane(perturbed_mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
-# calculate the flame matrix
-D = DistributedFlameMatrix(perturbed_mesh, w, h, rho, T, dparams.q_0, dparams.u_b, FTF, degree=degree, gamma=dparams.gamma)
+# rho_p = dparams.rhoFunctionPlane(perturbed_mesh, dparams.x_f, dparams.a_f, Rho_output, dparams.rho_u, dparams.amplitude, dparams.sig, dparams.limit)
+# if homogeneous_case:
+#     w_p = dparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
+#     h_p = dparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
+# else:
+#     w_p = dparams.gaussianFunctionHplane(perturbed_mesh, dparams.x_r, dparams.a_r, dparams.amplitude, dparams.sig) 
+#     h_p = dparams.gaussianFunctionHplane(perturbed_mesh, dparams.x_f, dparams.a_f, dparams.amplitude, dparams.sig) 
+# # calculate the flame matrix
+#D_p = DistributedFlameMatrix(perturbed_mesh, w_p, h_p, rho_p, T_p, dparams.q_0, dparams.u_b, FTF, degree=degree, gamma=dparams.gamma)
 
 
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
@@ -257,7 +257,7 @@ numerator2 = vector_matrix_vector(p_adj.vector, Mat_n, p_dir.vector)
 # assemble flame matrix
 D.assemble_submatrices('direct') # assemble direct flame matrix
 print("- denominator...")
-Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir)
+Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir) # should these be the perturbed matrices C and D or ne classic?
 z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
 Mat_d.mult(p_dir.vector, z)
 p_adj_conj = conjugate_function(p_adj)
@@ -290,7 +290,7 @@ print(f"---> \033[1mPerturbation Distance =\033[0m {perturbation} m")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz ")
 print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
 print(f"---> \033[1mDiscrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi,8)} + {round(derivative.imag/2/np.pi,8)}j")
-print(f"---> \033[1mNormalized Discrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation/duct_length,8)} + {round(derivative.imag/2/np.pi/perturbation/duct_length,8)}j")
+print(f"---> \033[1mNormalized Discrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation,8)} + {round(derivative.imag/2/np.pi/perturbation,8)}j")
 # close the gmsh session which was required to run for calculating shape derivatives
 gmsh.finalize()
 # mark the processing time:
