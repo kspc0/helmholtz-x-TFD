@@ -34,10 +34,10 @@ results_dir = "/Results" # folder for saving results
 
 #--------------------------MAIN PARAMETERS-------------------------#
 mesh_resolution = 0.008 # specify mesh resolution
-tube_length = 2.25 # length of the duct
+tube_length = 2 # length of the duct
 tube_height = 0.047 #0.047 # height of the duct
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 80 # where to expect first mode in Hz
+frequ = 100 # where to expect first mode in Hz
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 
 

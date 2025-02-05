@@ -36,10 +36,10 @@ results_dir = "/Results" # folder for saving results
 
 #--------------------------MAIN PARAMETERS-------------------------#
 mesh_resolution = 0.008 # specify mesh resolution
-tube_length = 1.75 # length of the tube
+tube_length = 2 # length of the tube
 tube_height = 0.047 # height of the tube
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 115 # where to expect first mode in Hz
+frequ = 100 # where to expect first mode in Hz
 perturbation = 0.001 # perturbation distance
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 perturbation_method_homogen = True # for only perturbing homogen part of duct, without flame
@@ -275,7 +275,7 @@ imag_part = (numerator.imag*denominator.real - numerator.real*denominator.imag)
 derivative = (real_part + 1j*imag_part) / (denominator.real**2 + denominator.imag**2)
 
 derivative2 = numerator2 / denominator2
-print("- check: 1==",derivative2/derivative)
+print("- check: 1+0j==",derivative2/derivative)
 
 #--------------------------FINALIZING-----------------------------#
 # print most important parameters and results of calculation
@@ -291,7 +291,8 @@ print(f"---> \033[1mPerturbation Distance =\033[0m {perturbation} m")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz ")
 print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
 print(f"---> \033[1mDiscrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi,8)} + {round(derivative.imag/2/np.pi,8)}j")
-print(f"---> \033[1mNormalized Discrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation,8)} + {round(derivative.imag/2/np.pi/perturbation,8)}j")
+# IDEA: Helmholtz number: He=2piL/lambda=(380/166*(2*np.pi*tube_length)) or maybe #/(2*np.pi)**(0.2) IDEA on imaginary part
+print(f"---> \033[1mNormalized Discrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation,8)} + {round(derivative.imag/2/np.pi/perturbation,8)}j") 
 # close the gmsh session which was required to run for calculating shape derivatives
 gmsh.finalize()
 # mark the processing time:

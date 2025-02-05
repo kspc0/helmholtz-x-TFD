@@ -46,8 +46,11 @@ s2 = np.loadtxt(parent_path+'/FTFMatrices/s2.csv', delimiter=',') # b
 s3 = np.loadtxt(parent_path+'/FTFMatrices/s3.csv', delimiter=',') # c
 s4 = np.array([[0]]) # d
 # FTF:
-n = 0.1 / (np.pi * 0.047/4) # interaction index scaled for 2D case
-tau = 0.0015
+#n = 2.7 #2.7 = 0.1 / (np.pi * 0.047/4) # interaction index scaled for 2D case
+#tau = 0.0015
+# from Juniper paper - nondimensional index
+n = 0.16
+tau = 0.508
 
 d = 1e-3 # used to dimension the mesh between scale 1m and scale 1e-3m
 ### Flame location
