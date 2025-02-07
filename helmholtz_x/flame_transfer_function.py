@@ -14,7 +14,7 @@ class nTau:
     # calculate the derivative of FTF -> needed for perturbation theory
     def derivative(self, omega):
         # first derivative of n-tau function
-        return self.n * (1j * self.tau) * exp(1j * omega * self.tau) 
+        return self.n * (1j * self.tau) * exp(1j * omega * self.tau)
 
 # if FTF from experimental data wants to be used:
 class stateSpace:

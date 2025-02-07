@@ -435,7 +435,7 @@ def newtonSolver(operators, D, init, nev, i, tol, degree, maxiter, print_results
         # set the target to zero (shift-and-invert)
         E = eps_solver(L, - C, 0, nev, two_sided=True, print_results=print_results)
         eig = E.getEigenvalue(i)
-        # print("eig", eig)   
+        # print("eig", eig)
         # normalize the eigenvectors
         # note that "p" is either direct or adjoint, depending on which matrix D was assembled earlier
         omega_dir, p = normalize_eigenvector(operators.mesh, E, i, degree=degree, which='right', print_eigs=False)

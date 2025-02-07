@@ -19,8 +19,8 @@ gamma = 1.4  # [/] ratio of specific heat capacities cp/cv
 ### properties of the surroundings
 p_amb = 1e5  # [Pa] ambient pressure
 T_amb = 293 #293  # [K] ambient temperature
-rho_amb = 1.22  # [kg/m^3] ambient density -> 1,189187904 ~1.2
-c_amb = sqrt(gamma*p_amb/rho_amb)  # [m/s] ambient speed of sound 343,11426662
+rho_amb = 1.22  # [kg/m^3] ambient density
+c_amb = sqrt(gamma*p_amb/rho_amb)  # [m/s] ambient speed of sound 338.7537429470791
 
 ### density, temperature and speed of sound
 # input and output density
@@ -30,27 +30,25 @@ rho_d = 0.85 # inhomogenous case  # [kg/m^3]
 T_in = 285.6  # [K] -> 293
 T_out = 409.92  # [K] -> 2049
 # input and output speed of sound
-c_in = sqrt(gamma*p_amb/rho_u)  # [kg/m^3] -> 343.114266
-c_out = sqrt(gamma*p_amb/rho_d)  # [kg/m^3] -> 910
+c_in = sqrt(gamma*p_amb/rho_u)  # [kg/m^3] -> 338.7537429470791
+c_out = sqrt(gamma*p_amb/rho_d)  # [kg/m^3] -> 405.8397249567139
 
 # No reflection coefficients for boundaries
-R_in = 0   #-0.23123+0.123j # [/]
-R_out = 0   #-0.454-0.2932j  # [/] 
+#R_in = -0.975-0.05j  #-0.23123+0.123j # [/]
+#R_out = -0.975-0.05j   #-0.454-0.2932j  # [/] 
 
 ### Flame transfer function
 u_b = 0.1006 # [m/s] mean flow velocity (bulk velocity)
-q_0 = -27.0089 # [W] heat flux density: integrated value dQ from open foam
+# scale q_0 down from 3D cylinder to 2D plane
+q_0 = -27.0089 #/(0.047)/1 # [W] heat flux density: integrated value dQ from open foam
 # load the state-space matrices from data saved as csv tables
-S1 = np.loadtxt(parent_path+'/FTFMatrices/S1.csv', delimiter=',') # A
-s2 = np.loadtxt(parent_path+'/FTFMatrices/s2.csv', delimiter=',') # b
-s3 = np.loadtxt(parent_path+'/FTFMatrices/s3.csv', delimiter=',') # c
-s4 = np.array([[0]]) # d
 # FTF:
-#n = 2.7 #2.7 = 0.1 / (np.pi * 0.047/4) # interaction index scaled for 2D case
-#tau = 0.0015
+n = 0.1*4/(np.pi*0.047) #/(np.pi/4 * 0.047)#2.7 #2.7 = 0.1 / (np.pi * 0.047/4) # interaction index scaled for 2D case
+tau = 0.0015#/1.744 #0.0015*338.7537429470791 #*4/(np.pi*0.047) #0015 #*338/0.047 #*4/(np.pi*0.047)
+# 0.00086 fits perfectly for lenght = 1
 # from Juniper paper - nondimensional index
-n = 0.16
-tau = 0.508
+#n = 0.014 / (np.pi/4 * 0.047) #0.161
+#tau = 0.0015*338/1=0.508 # nondimensional time delay
 
 d = 1e-3 # used to dimension the mesh between scale 1m and scale 1e-3m
 ### Flame location

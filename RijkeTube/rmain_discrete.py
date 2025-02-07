@@ -36,14 +36,18 @@ results_dir = "/Results" # folder for saving results
 
 #--------------------------MAIN PARAMETERS-------------------------#
 mesh_resolution = 0.008 # specify mesh resolution
-tube_length = 2 # length of the tube
+tube_length = 1 # length of the tube
 tube_height = 0.047 # height of the tube
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 100 # where to expect first mode in Hz
+frequ = 200 # where to expect first mode in Hz
 perturbation = 0.001 # perturbation distance
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 perturbation_method_homogen = True # for only perturbing homogen part of duct, without flame
-
+# set boundary conditions case
+boundary_conditions =  {1:  {'Neumann'}, # inlet
+                        2:  {'Neumann'}, # outlet
+                        3:  {'Neumann'}, # upper wall
+                        4:  {'Neumann'}} # lower wall
 
 #--------------------------CREATE MESH----------------------------#
 print("\n--- CREATING MESH ---")
@@ -91,11 +95,6 @@ Rijke.getInfo()
 
 #--------------------ASSEMBLE PASSIVE MATRICES--------------------#
 print("\n--- ASSEMBLING PASSIVE MATRICES ---")
-# set boundary conditions case
-boundary_conditions =  {1:  {'Neumann'}, # inlet
-                        2:  {'Neumann'}, # outlet
-                        3:  {'Neumann'}, # upper wall
-                        4:  {'Neumann'}} # lower wall
 # initialize parameters for homogeneous or inhomogeneous case
 if homogeneous_case: # homogeneous case
     T_output = rparams.T_in
@@ -106,6 +105,7 @@ else: # inhomogeneous case
 
 # define temperature gradient function in geometry
 T = rparams.temperature_step_gauss_plane(mesh, rparams.x_f, rparams.T_in, T_output, rparams.amplitude, rparams.sig)
+#T = rparams.rhoFunctionPlane(mesh, rparams.x_f, rparams.a_f, T_output, rparams.T_in, rparams.amplitude, rparams.sig, rparams.limit) # step temperature (modified to Kornilov)
 # calculate the sound speed function from temperature
 c = sound_speed(T)
 # calculate the passive acoustic matrices
@@ -128,7 +128,7 @@ else:
     h = rparams.gaussianFunctionHplane(mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
 # calculate the flame matrix
 D = DistributedFlameMatrix(mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
-
+#*tube_height*tube_length
 
 #-------------------SOLVE THE DISCRETE SYSTEM---------------------#
 print("\n--- STARTING NEWTON METHOD ---")
@@ -215,26 +215,28 @@ perturbed_mesh, perturbed_subdomains, perturbed_facet_tags = perturbed_Rijke.get
 perturbed_Rijke.getInfo()
 
 # define temperature gradient function in geometry
-T = rparams.temperature_step_gauss_plane(perturbed_mesh, rparams.x_f, rparams.T_in, T_output, rparams.amplitude, rparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
+T_nondim = rparams.temperature_step_gauss_plane(perturbed_mesh, rparams.x_f, rparams.T_in, T_output, rparams.amplitude, rparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the sound speed function from temperature
-c = sound_speed(T)
+c_nondim = sound_speed(T)
 # calculate the passive acoustic matrices
 perturbed_matrices = AcousticMatrices(perturbed_mesh, perturbed_facet_tags, boundary_conditions, T , degree = degree) # very large, sparse matrices
 
 
 #-------------------REASSEMBLE FLAME TRANSFER MATRIX----------------#
 print("\n--- REASSEMBLING FLAME MATRIX ---")
-# # define input functions for the flame matrix
-# rho = rparams.rhoFunctionPlane(perturbed_mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u, rparams.amplitude, rparams.sig, rparams.limit)
+# # FTF_nondim = nTau(rparams.n_nondim, rparams.tau_nondim)
+# # # define input functions for the flame matrix
+# rho_nondim = rparams.rhoFunctionPlane(perturbed_mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u, rparams.amplitude, rparams.sig, rparams.limit)
 # if homogeneous_case:
-#     w = rparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
-#     h = rparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
+#     w_nondim = rparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
+#     h_nondim = rparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
 # else:
-#     w = rparams.gaussianFunctionHplane(perturbed_mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
-#     h = rparams.gaussianFunctionHplane(perturbed_mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
-# calculate the flame matrix
-#D = DistributedFlameMatrix(perturbed_mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
+#     w_nondim = rparams.gaussianFunctionHplane(perturbed_mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
+#     h_nondim = rparams.gaussianFunctionHplane(perturbed_mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
+# # calculate the flame matrix
+# D = DistributedFlameMatrix(perturbed_mesh, w_nondim, h_nondim, rho_nondim, T_nondim, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
 
+# omega_dir = (1243.9475951233262 - 0.04558214994638853 *1j)
 
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
 print("\n--- CALCULATING SHAPE DERIVATIVES ---")
@@ -257,7 +259,7 @@ numerator2 = vector_matrix_vector(p_adj.vector, Mat_n, p_dir.vector)
 # assemble flame matrix
 D.assemble_submatrices('direct') # assemble direct flame matrix
 print("- denominator...")
-Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir)
+Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir) #/2/np.pi#*338
 
 z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
 Mat_d.mult(p_dir.vector, z)

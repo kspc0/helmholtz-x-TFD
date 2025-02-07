@@ -34,11 +34,16 @@ results_dir = "/Results" # folder for saving results
 
 #--------------------------MAIN PARAMETERS-------------------------#
 mesh_resolution = 0.008 # specify mesh resolution
-tube_length = 2 # length of the duct
+tube_length = 1 # length of the duct
 tube_height = 0.047 #0.047 # height of the duct
 degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 100 # where to expect first mode in Hz
+frequ = 200 # where to expect first mode in Hz
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
+# set boundary conditions case
+boundary_conditions =  {1:  {'Neumann'}, # inlet
+                        2:  {'Neumann'}, # outlet
+                        3:  {'Neumann'}, # upper wall
+                        4:  {'Neumann'}} # lower wall
 
 
 #--------------------------CREATE MESH----------------------------#
@@ -87,11 +92,6 @@ Rijke.getInfo()
 
 #--------------------ASSEMBLE PASSIVE MATRICES--------------------#
 print("\n--- ASSEMBLING PASSIVE MATRICES ---")
-# set boundary conditions case
-boundary_conditions =  {1:  {'Neumann'}, # inlet
-                        2:  {'Neumann'}, # outlet
-                        3:  {'Neumann'}, # upper wall
-                        4:  {'Neumann'}} # lower wall
 # initialize parameters for homogeneous or inhomogeneous case
 if homogeneous_case: # homogeneous case
     T_output = rparams.T_in
@@ -102,6 +102,7 @@ else: # inhomogeneous case
 
 # define temperature gradient function in geometry
 T = rparams.temperature_step_gauss_plane(mesh, rparams.x_f, rparams.T_in, T_output, rparams.amplitude, rparams.sig)
+#T = rparams.rhoFunctionPlane(mesh, rparams.x_f, rparams.a_f, T_output, rparams.T_in, rparams.amplitude, rparams.sig, rparams.limit) # step temperature (modified to Kornilov)
 # calculate the sound speed function from temperature
 c = sound_speed(T)
 # calculate the passive acoustic matrices
@@ -124,7 +125,7 @@ else:
     h = rparams.gaussianFunctionHplane(mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
 # calculate the flame matrix
 D = DistributedFlameMatrix(mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
-
+#*tube_height*tube_length
 
 #-------------------SOLVE THE DISCRETE SYSTEM---------------------#
 print("\n--- STARTING NEWTON METHOD ---")
@@ -169,6 +170,12 @@ xdmf_writer(path+results_dir+"/p_adj", mesh, p_adj)
 xdmf_writer(path+results_dir+"/p_adj_abs", mesh, absolute(p_adj))
 
 
+# print("\n--- REASSEMBLING FLAME MATRIX ---")
+# FTF_nondim = nTau(rparams.n_nondim, rparams.tau_nondim)
+#D = DistributedFlameMatrix(mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
+D.assemble_submatrices('direct')
+
+
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
 print("\n--- CALCULATING SHAPE DERIVATIVES ---")
 # 1 for inlet
@@ -187,6 +194,7 @@ xdmf_writer(path+"/InputFunctions/V_ffd", mesh, V_ffd)
 
 # calculate the shape derivatives for the border
 print("- calculating shape derivative")
+#D.assemble_submatrices('adjoint')
 derivative = ShapeDerivativesFFDRectFullBorder(Rijke, selected_facet_tag, selected_boundary_condition, norm_vector_inlet, omega_dir, p_dir, p_adj, c, matrices, D)
 
 
