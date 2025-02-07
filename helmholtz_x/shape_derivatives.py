@@ -212,6 +212,7 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, selected_bou
     #print("geometry facet tags: ", geometry.facet_tags)
     #print("ds=", assemble_scalar(form(1*ds(physical_facet_tag))))
 
+    #p_adj_conj = conjugate_function(p_adj)
     # we need to create the normalized adjoint as from the derivative of the eigenvalue
     p_adj_norm = normalize_adjoint(omega_dir, p_dir, p_adj, acousticMatrices, FlameMatrix)
     p_adj_conj = conjugate_function(p_adj_norm)
@@ -243,7 +244,7 @@ def ShapeDerivativesFFDRectFullBorder(geometry, physical_facet_tag, selected_bou
     #print("Integral of inner(V_ffd, normal) over the domain:", V_ffd_normal_value)
 
     # calculate the shape derivative of the border
-    shape_derivative_form = form(inner(V_ffd, normal) * G_neu * ds(physical_facet_tag))
+    shape_derivative_form = form(inner(V_ffd, normal) *G_neu * ds(physical_facet_tag))
     eig = assemble_scalar(shape_derivative_form)
     # store the solution in the array
     derivatives = eig

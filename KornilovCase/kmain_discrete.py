@@ -43,6 +43,12 @@ degree = 1
 frequ = 5000 # where to expect first mode in Hz
 perturbation = 0.0001 # perturbation distance
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
+# set boundary conditions case
+boundary_conditions =  {1:  {'Neumann'}, # inlet
+                        2:  {'Dirichlet'}, # outlet
+                        3:  {'Neumann'}, # upper combustion chamber and slit wall
+                        4:  {'Neumann'}, # lower symmetry boundary
+                        5:  {'Neumann'}} # upper plenum wall
 
 
 #--------------------------CREATE MESH----------------------------#
@@ -100,12 +106,7 @@ Kornilov.getInfo()
 
 #--------------------ASSEMBLE PASSIVE MATRICES--------------------#
 print("\n--- ASSEMBLING PASSIVE MATRICES ---")
-# set boundary conditions case
-boundary_conditions =  {1:  {'Neumann'}, # inlet
-                        2:  {'Dirichlet'}, # outlet
-                        3:  {'Neumann'}, # upper combustion chamber and slit wall
-                        4:  {'Neumann'}, # lower symmetry boundary
-                        5:  {'Neumann'}} # upper plenum wall
+
 # initialize parameters for homogeneous or inhomogeneous case
 if homogeneous_case: # homogeneous case
     T_output = kparams.T_in

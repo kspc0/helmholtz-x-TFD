@@ -18,47 +18,42 @@ gamma = 1.4  # [/] ratio of specific heat capacities cp/cv
 
 ### properties of the surroundings
 p_amb = 1e5  # [Pa] ambient pressure
-T_amb = 293 #293  # [K] ambient temperature
+T_amb = 293 # [K] ambient temperature
 rho_amb = 1.22  # [kg/m^3] ambient density
-c_amb = sqrt(gamma*p_amb/rho_amb)  # [m/s] ambient speed of sound 338.7537429470791
+c_amb = sqrt(gamma*p_amb/rho_amb)  # [m/s] ambient speed of sound
 
 ### density, temperature and speed of sound
 # input and output density
-rho_u = rho_amb  # [kg/m^3] -> 1,189187904 ~1.2
+rho_u = rho_amb  # [kg/m^3]
 rho_d = 0.85 # inhomogenous case  # [kg/m^3]
 # input and output temperature
-T_in = 285.6  # [K] -> 293
-T_out = 409.92  # [K] -> 2049
+T_in = 285.6  # [K]
+T_out = 409.92  # [K]
 # input and output speed of sound
-c_in = sqrt(gamma*p_amb/rho_u)  # [kg/m^3] -> 338.7537429470791
-c_out = sqrt(gamma*p_amb/rho_d)  # [kg/m^3] -> 405.8397249567139
+c_in = sqrt(gamma*p_amb/rho_u)  # [m/s]
+c_out = sqrt(gamma*p_amb/rho_d)  # [m/s]
 
-# No reflection coefficients for boundaries
-#R_in = -0.975-0.05j  #-0.23123+0.123j # [/]
-#R_out = -0.975-0.05j   #-0.454-0.2932j  # [/] 
+# reflection coefficients for boundaries if Robin boundary given
+#R_in = -0.975-0.05j # [/]
+#R_out = -0.975-0.05j # [/] 
 
 ### Flame transfer function
 u_b = 0.1006 # [m/s] mean flow velocity (bulk velocity)
 # scale q_0 down from 3D cylinder to 2D plane
-q_0 = -27.0089 #/(0.047)/1 # [W] heat flux density: integrated value dQ from open foam
-# load the state-space matrices from data saved as csv tables
-# FTF:
-n = 0.1*4/(np.pi*0.047) #/(np.pi/4 * 0.047)#2.7 #2.7 = 0.1 / (np.pi * 0.047/4) # interaction index scaled for 2D case
-tau = 0.0015#/1.744 #0.0015*338.7537429470791 #*4/(np.pi*0.047) #0015 #*338/0.047 #*4/(np.pi*0.047)
-# 0.00086 fits perfectly for lenght = 1
-# from Juniper paper - nondimensional index
-#n = 0.014 / (np.pi/4 * 0.047) #0.161
-#tau = 0.0015*338/1=0.508 # nondimensional time delay
-
-d = 1e-3 # used to dimension the mesh between scale 1m and scale 1e-3m
+q_0 = -27.0089*4/(np.pi*0.047) #/(0.047)/1 # [W] heat flux density: integrated value dQ from open foam
+# n-tau model parameters
+n = 0.1 # interaction index
+tau = 0.0015 #086 # 0.0015
+# dimensioning of the flame
+d = 1e-3 # used to scale the mesh between meters and milimeters
 ### Flame location
-# flame location in 2D
-x_f = np.array([[250*d, 0.0, 0.0]])  # [m] flame located at roughly 13mm in Kornilov Case
+# flame location - heat release rate
+x_f = np.array([[250*d, 0.0, 0.0]])  # [m]
 a_f = 25*d # [m] thickness of flame
-# reference point coordinates - needed?
-x_r = np.array([[200*d, 0., 0.]])  # [m] reference located at 5mm in Kornilov Case
+# reference point coordinates
+x_r = np.array([[200*d, 0., 0.]])  # [m]
 a_r = 25*d  # [m] thickness of reference
-# gauss function dimensions for a side view gaussian function
+# gauss function dimensions only for a side view gaussian function
 sig = 80*d # [m] thickness of flame gauss function
 amplitude = 4*d # [m] height of flame gauss function
 limit = 1*d # [m] horizontal separation for breakpoint of density function
@@ -88,7 +83,7 @@ def rhoFunction(mesh, x_f, a_f, rho_d, rho_u,amplitude, sig,limit, degree=1):
     return rho
 
 # now distribute the 1D density function onto the 2D mesh
-def rhoFunctionPlane(mesh, x_f, a_f, rho_d, rho_u,amplitude, sig,limit, degree=1):
+def rhoFunctionPlane(mesh, x_f, a_f, rho_d, rho_u, degree=1):
     # create a continuous function space V
     V = FunctionSpace(mesh, ("CG", degree))
     rho = Function(V)
@@ -138,7 +133,7 @@ def gaussianFunctionH(mesh, x_f, a_f, amplitude, sig,degree=1):
     return w
 
 # plane gauss function
-def gaussianFunctionHplane(mesh, x_f, a_f, amplitude, sig,degree=1):
+def gaussianFunctionHplane(mesh, x_f, a_f, degree=1):
     V = FunctionSpace(mesh, ("CG", degree))
     w = Function(V)
     x_f = x_f[0]
@@ -148,7 +143,7 @@ def gaussianFunctionHplane(mesh, x_f, a_f, amplitude, sig,degree=1):
     w = normalize(w)
     return w
 
-def gaussianFunctionHplaneHomogenous(mesh, x_f, a_f, amplitude, sig,degree=1):
+def gaussianFunctionHplaneHomogenous(mesh, x_f,x_r,degree=1):
     V = FunctionSpace(mesh, ("CG", degree))
     w = Function(V)
     x_f = x_f[0]
@@ -280,7 +275,7 @@ def temperature_step_gauss(mesh, x_f, T_u, T_d,amplitude, sig, degree=1):
             T.vector.setValueLocal(i, T_d)
     return T
 
-def temperature_step_gauss_plane(mesh, x_f, T_u, T_d,amplitude, sig, degree=1):
+def temperature_step_gauss_plane(mesh, x_f, T_u, T_d, degree=1):
     V = FunctionSpace(mesh, ("CG", degree))
     T = Function(V)
     T.name = "temperature"

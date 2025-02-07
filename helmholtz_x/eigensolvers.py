@@ -392,7 +392,7 @@ def fixed_point_iteration(operators, D,  target, nev, i,
 
 
 # another solver, other than the two fixed point iterations
-def newtonSolver(operators, D, init, nev, i, tol, degree, maxiter, print_results=False):
+def newtonSolver(operators, D, init, nev, i, tol, degree, maxiter, problem_type,print_results=False):
     """
     The convergence strongly depends/relies on the initial value assigned to omega.
     Targeting zero in the shift-and-invert (spectral) transformation or, more in general,
@@ -422,13 +422,17 @@ def newtonSolver(operators, D, init, nev, i, tol, degree, maxiter, print_results
     info("-> Newton solver started.")
 
     while abs(domega) > tol:
-        D.assemble_matrix(omega[k])
+        D.assemble_matrix(omega[k], problem_type)
+        if problem_type == 'direct':
+            D_Mat = D.matrix
+        elif problem_type == 'adjoint':
+            D_Mat = D.adjoint_matrix
         if not B:
-            L = A + omega[k] ** 2 * C - D.matrix
+            L = A + omega[k] ** 2 * C - D_Mat
             #print("- no boundary matrix")
             dL_domega = 2 * omega[k] * C - D.get_derivative(omega[k])
         else:
-            L = A + omega[k] * B + omega[k]** 2 * C  - D.matrix
+            L = A + omega[k] * B + omega[k]** 2 * C  - D_Mat
             dL_domega = B + (2 * omega[k] * C) - D.get_derivative(omega[k])
 
         # solve the eigenvalue problem L(\omega) * p = \lambda * C * p

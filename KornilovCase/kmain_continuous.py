@@ -39,6 +39,12 @@ mesh_resolution = 0.2e-3 # specify mesh resolution
 degree = 1 # the higher the degree, the longer the calulation takes but the more precise it is
 frequ = 200 # where to expect first mode in Hz
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
+# set boundary conditions case
+boundary_conditions     = {1:  {'Neumann'}, # inlet
+                           2:  {'Dirichlet'}, # outlet
+                           3:  {'Neumann'}, # upper combustion chamber and slit wall
+                           4:  {'Neumann'}, # lower symmetry boundary
+                           5:  {'Neumann'}} # upper plenum wall
 
 
 #--------------------------CREATE MESH----------------------------#
@@ -96,12 +102,6 @@ Kornilov.getInfo()
 
 #--------------------ASSEMBLE PASSIVE MATRICES--------------------#
 print("\n--- ASSEMBLING PASSIVE MATRICES ---")
-# set boundary conditions case
-boundary_conditions     = {1:  {'Neumann'}, # inlet
-                           2:  {'Dirichlet'}, # outlet
-                           3:  {'Neumann'}, # upper combustion chamber and slit wall
-                           4:  {'Neumann'}, # lower symmetry boundary
-                           5:  {'Neumann'}} # upper plenum wall
 # initialize parameters for homogeneous or inhomogeneous case
 if homogeneous_case: # homogeneous case
     T_output = kparams.T_in

@@ -1,6 +1,6 @@
 '''
-objective: calculate shape derivative for a simple duct using discete adjoint approach
-with full border displacement of the inlet
+objective: calculate shape derivative for a 2D rijke tube using discete 
+adjoint approach with full border displacement of the outlet
 '''
 
 import datetime
@@ -12,10 +12,10 @@ import numpy as np
 from mpi4py import MPI
 from petsc4py import PETSc
 
-# Parameters of the problem
+# parameters of the problem
 import rparams
 # HelmholtzX utilities
-from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh, load_xdmf_mesh # to write mesh data as files
+from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh # to write mesh data as files
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
 from helmholtz_x.acoustic_matrices import AcousticMatrices # to assemble the acoustic matrices for discrete Helm. EQU
 from helmholtz_x.flame_transfer_function import nTau, stateSpace # to define the flame transfer function
@@ -38,16 +38,16 @@ results_dir = "/Results" # folder for saving results
 mesh_resolution = 0.008 # specify mesh resolution
 tube_length = 1 # length of the tube
 tube_height = 0.047 # height of the tube
-degree = 2 # the higher the degree, the longer the calulation takes but the more precise it is
-frequ = 200 # where to expect first mode in Hz
-perturbation = 0.001 # perturbation distance
-homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
-perturbation_method_homogen = True # for only perturbing homogen part of duct, without flame
-# set boundary conditions case
+degree = 2 # degree of FEM polynomials
+frequ = 200 # target frequency - where to expect first mode in Hz
+perturbation = 0.001 # perturbation distance of the mesh
+homogeneous_case = False # set True for homogeneous case, False for inhomogeneous case
+# set boundary conditions
 boundary_conditions =  {1:  {'Neumann'}, # inlet
                         2:  {'Neumann'}, # outlet
                         3:  {'Neumann'}, # upper wall
                         4:  {'Neumann'}} # lower wall
+
 
 #--------------------------CREATE MESH----------------------------#
 print("\n--- CREATING MESH ---")
@@ -63,7 +63,6 @@ l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
 l2 = gmsh.model.geo.addLine(p2, p3) # upper wall
 l3 = gmsh.model.geo.addLine(p3, p4) # outlet boundary
 l4 = gmsh.model.geo.addLine(p4, p1) # lower wall
-# create extra points to outline the plenum (needed for shape derivation of upper plenum wall)
 # create curve loops for surface
 loop1 = gmsh.model.geo.addCurveLoop([l1,l2,l3,l4]) # entire geometry
 # create surfaces from the curved loops
@@ -79,8 +78,8 @@ gmsh.model.addPhysicalGroup(2, [surface1], tag=1)
 gmsh.model.geo.synchronize()
 gmsh.model.mesh.generate(2)
 # optionally launch GUI to see the results
-# if '-nopopup' not in sys.argv:
-#    gmsh.fltk.run() 
+#if '-nopopup' not in sys.argv:
+#   gmsh.fltk.run() 
 # save data in /Meshes directory
 gmsh.write("{}.msh".format(path+mesh_dir+mesh_name)) # save as .msh file
 write_xdmf_mesh(path+mesh_dir+mesh_name,dimension=2) # save as .xdmf file
@@ -97,15 +96,13 @@ Rijke.getInfo()
 print("\n--- ASSEMBLING PASSIVE MATRICES ---")
 # initialize parameters for homogeneous or inhomogeneous case
 if homogeneous_case: # homogeneous case
-    T_output = rparams.T_in
-    Rho_output = rparams.rho_u
+    T_output = rparams.T_in # no temperature gradient
+    Rho_output = rparams.rho_u # no density gradient
 else: # inhomogeneous case
     T_output = rparams.T_out
     Rho_output = rparams.rho_d
-
-# define temperature gradient function in geometry
-T = rparams.temperature_step_gauss_plane(mesh, rparams.x_f, rparams.T_in, T_output, rparams.amplitude, rparams.sig)
-#T = rparams.rhoFunctionPlane(mesh, rparams.x_f, rparams.a_f, T_output, rparams.T_in, rparams.amplitude, rparams.sig, rparams.limit) # step temperature (modified to Kornilov)
+# distribute temperature gradient as function on the geometry
+T = rparams.temperature_step_gauss_plane(mesh, rparams.x_f, rparams.T_in, T_output)
 # calculate the sound speed function from temperature
 c = sound_speed(T)
 # calculate the passive acoustic matrices
@@ -118,27 +115,26 @@ print("\n--- ASSEMBLING FLAME MATRIX ---")
 FTF = nTau(rparams.n, rparams.tau)
 # define input functions for the flame matrix
 # density function:
-rho = rparams.rhoFunctionPlane(mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u, rparams.amplitude, rparams.sig, rparams.limit)
-# use differnet functions depending on the case for heat release h and measurement w
+rho = rparams.rhoFunctionPlane(mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u)
+# use differnet functions for heat release h(x) and measurement w(x)
 if homogeneous_case:
-    w = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
-    h = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
+    w = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_r, rparams.a_r)
+    h = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_f, rparams.a_r)
 else:
-    w = rparams.gaussianFunctionHplane(mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
-    h = rparams.gaussianFunctionHplane(mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
+    w = rparams.gaussianFunctionHplane(mesh, rparams.x_r, rparams.a_r) 
+    h = rparams.gaussianFunctionHplane(mesh, rparams.x_f, rparams.a_f) 
 # calculate the flame matrix
 D = DistributedFlameMatrix(mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
-#*tube_height*tube_length
+
 
 #-------------------SOLVE THE DISCRETE SYSTEM---------------------#
 print("\n--- STARTING NEWTON METHOD ---")
-# set the target (expected angular frequency of the system)
 # unit of target: ([Hz])*2*pi = [rad/s] 
 target = (frequ)*2*np.pi
 print(f"---> \033[1mTarget\033[0m: {target.real:.2f}  {target.imag:.2f}j")
 # solve using Newton's method and the parameters:
 # i: index of the eigenvalue (i=0 is closest eigenvalue to target)
-# nev: number of eigenvalues to calculate in close range to target
+# nev: number of eigenvalues to find in close range to target
 # tol: tolerance of the solution
 # maxiter: maximum number of iterations
 try:
@@ -146,13 +142,13 @@ try:
     print("\n- DIRECT PROBLEM -")
     D.assemble_submatrices('direct') # assemble direct flame matrix
     # calculate the eigenvalues and eigenvectors
-    omega_dir, p_dir = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-2, degree=degree, maxiter=70, print_results= False)
+    omega_dir, p_dir = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-2, degree=degree, maxiter=70, problem_type='direct', print_results= False)
     print("- omega_dir:", omega_dir)
     # adjoint problem
     print("\n- ADJOINT PROBLEM -")
     D.assemble_submatrices('adjoint') # assemble adjoint flame matrix
     # calculate the eigenvalues and eigenvectors
-    omega_adj, p_adj = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-2, degree=degree, maxiter=70, print_results= False)
+    omega_adj, p_adj = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-2, degree=degree, maxiter=70, problem_type='adjoint',print_results= False)
     print("- omega_adj:", omega_adj)
 except IndexError:
     print("XXX--IndexError--XXX") # convergence of target failed in given range of iterations and tolerance
@@ -162,111 +158,90 @@ else:
 
 #-------------------POSTPROCESSING AND SAVING---------------------#
 print("\n--- POSTPROCESSING ---")
-# save solutions as a dictionary with labels and values:
+# save solutions in a dictionary with labels and values
 omega_dict = {'direct':omega_dir, 'adjoint': omega_adj}
-# save as textfile
-dict_writer(path+results_dir+"/eigenvalues", omega_dict)
-# save direct and adjoint eigenvector solution as xdmf files
-xdmf_writer(path+results_dir+"/p_dir", mesh, p_dir) # as xdmf file for paraview analysis
-xdmf_writer(path+results_dir+"/p_dir_abs", mesh, absolute(p_dir)) # also save the absolute pressure distribution
+dict_writer(path+results_dir+"/eigenvalues", omega_dict) # save as .txt
+# save direct and adjoint eigenvector solution as .xdmf files
+xdmf_writer(path+results_dir+"/p_dir", mesh, p_dir)
+xdmf_writer(path+results_dir+"/p_dir_abs", mesh, absolute(p_dir))
 xdmf_writer(path+results_dir+"/p_adj", mesh, p_adj)
 xdmf_writer(path+results_dir+"/p_adj_abs", mesh, absolute(p_adj))
 
 
 #-------------------PERTURBING THE MESH---------------------------#
 print("\n--- PERTURBING THE MESH ---")
-# for discrete shape derivatives, the mesh needs to be perturbed
+# for discrete shape derivatives the mesh needs to be perturbed
 # read tags and coordinates of the mesh
 node_tags, node_coords, _ = gmsh.model.mesh.getNodes()
 # assign x,y,z coordinates to separate arrays
 xcoords = node_coords[0::3] # get x-coordinates
 ycoords = node_coords[1::3] # get y-coordinates
 zcoords = node_coords[2::3] # get z-coordinates
-# create list to store the indices of the plenum nodes
-# perturb the chosen mesh points slightly in y direction
-# perturbation is percent based on the y-coordinate
-if perturbation_method_homogen == True: # only perturb homogen part of duct
-    for i, x in enumerate(xcoords):
-        if x > 0.3:
-            xcoords[i] += (x - 0.3)/(tube_length - 0.3) * perturbation
-else: # perturb the whole duct
-    xcoords += xcoords * perturbation
-# update node y coordinates in mesh from the perturbed points and the unperturbed original points
+# perturb the chosen mesh points slightly in x direction
+for i, x in enumerate(xcoords):
+    if x > 0.3: # only perturb parts of mesh that lie behind the flame located at 0.25m
+        xcoords[i] += (x - 0.3)/(tube_length - 0.3) * perturbation
+#xcoords += xcoords * perturbation #(case for perturbing the whole duct disregarding the flame)
+# update node x coordinates in mesh to the perturbed points
 node_coords[0::3] = xcoords
 # update node positions
 for tag, new_coords in zip(node_tags, node_coords.reshape(-1,3)):
     gmsh.model.mesh.setNode(tag, new_coords, [])
-# update point positions 
+# update point positions
 gmsh.model.setCoordinates(p3, perturbation + tube_length, tube_height, 0)
 gmsh.model.setCoordinates(p4, perturbation + tube_length, 0, 0)
 # optionally launch GUI to see the results
-# if '-nopopup' not in sys.argv:
-#    gmsh.fltk.run()
+#if '-nopopup' not in sys.argv:
+#   gmsh.fltk.run()
 # save perturbed mesh data in /Meshes directory
 gmsh.write("{}.msh".format(path+mesh_dir+perturbed_mesh_name)) # save as .msh file
 write_xdmf_mesh(path+mesh_dir+perturbed_mesh_name,dimension=2) # save as .xdmf file
 
 
-#--------------------REASSEMBLE PASSIVE MATRICES-----------------#
-print("\n--- REASSEMBLING PASSIVE MATRICES ---")
-# recalculate the acoustic matrices for the perturbed mesh
+#--------------------------RELOAD MESH DATA-------------------------#
+print("\n--- RELOADING MESH ---")
+# reload to the perturbed mesh
 perturbed_Rijke = XDMFReader(path+mesh_dir+perturbed_mesh_name)
 perturbed_mesh, perturbed_subdomains, perturbed_facet_tags = perturbed_Rijke.getAll() # mesh, domains and tags
 perturbed_Rijke.getInfo()
 
+
+#--------------------REASSEMBLE PASSIVE MATRICES-----------------#
+print("\n--- REASSEMBLING PASSIVE MATRICES ---")
+# recalculate the acoustic matrices for the perturbed mesh
 # define temperature gradient function in geometry
-T_nondim = rparams.temperature_step_gauss_plane(perturbed_mesh, rparams.x_f, rparams.T_in, T_output, rparams.amplitude, rparams.sig) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
-# calculate the sound speed function from temperature
-c_nondim = sound_speed(T)
+T_pert = rparams.temperature_step_gauss_plane(perturbed_mesh, rparams.x_f, rparams.T_in, T_output) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the passive acoustic matrices
-perturbed_matrices = AcousticMatrices(perturbed_mesh, perturbed_facet_tags, boundary_conditions, T , degree = degree) # very large, sparse matrices
+perturbed_matrices = AcousticMatrices(perturbed_mesh, perturbed_facet_tags, boundary_conditions, T_pert , degree = degree) # very large, sparse matrices
 
-
-#-------------------REASSEMBLE FLAME TRANSFER MATRIX----------------#
-print("\n--- REASSEMBLING FLAME MATRIX ---")
-# # FTF_nondim = nTau(rparams.n_nondim, rparams.tau_nondim)
-# # # define input functions for the flame matrix
-# rho_nondim = rparams.rhoFunctionPlane(perturbed_mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u, rparams.amplitude, rparams.sig, rparams.limit)
-# if homogeneous_case:
-#     w_nondim = rparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
-#     h_nondim = rparams.gaussianFunctionHplaneHomogenous(perturbed_mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
-# else:
-#     w_nondim = rparams.gaussianFunctionHplane(perturbed_mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
-#     h_nondim = rparams.gaussianFunctionHplane(perturbed_mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
-# # calculate the flame matrix
-# D = DistributedFlameMatrix(perturbed_mesh, w_nondim, h_nondim, rho_nondim, T_nondim, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
-
-# omega_dir = (1243.9475951233262 - 0.04558214994638853 *1j)
 
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
 print("\n--- CALCULATING SHAPE DERIVATIVES ---")
-print("- calculate perturbed matrices")
+print("- calculate difference perturbed matrices")
 diff_A = perturbed_matrices.A - matrices.A
 diff_C = perturbed_matrices.C - matrices.C
-
 # using formula of numeric/discrete shape derivative
-print("- numerator addition of matrices...")
-omega_square = omega_dir.real**2 - omega_dir.imag**2 + 2j*omega_dir.real*omega_dir.imag #use omega_adj here??
+print("- assembling numerator matrix")
+omega_square = omega_dir.real**2 - omega_dir.imag**2 + 2j*omega_dir.real*omega_dir.imag # square imaginary number
 Mat_n = diff_A + omega_square * diff_C
-
-y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector to store the result of matrix-vector multiplication
-Mat_n.mult(p_dir.vector, y) # multiply the matrix with the direct eigenfunction
-p_adj_conj = conjugate_function(p_adj)
-# dot product
-numerator = p_adj_conj.vector.dot(y)
-numerator2 = vector_matrix_vector(p_adj.vector, Mat_n, p_dir.vector)
+# multiply numerator matrix with direct and
+# y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector to store the result of matrix-vector multiplication
+# Mat_n.mult(p_dir.vector, y) # multiply the matrix with the direct eigenfunction
+#p_adj_conj = conjugate_function(p_adj)
+# # dot product
+# numerator = p_adj_conj.vector.dot(y)
+numerator = vector_matrix_vector(p_adj.vector, Mat_n, p_dir.vector)
 
 # assemble flame matrix
 D.assemble_submatrices('direct') # assemble direct flame matrix
 print("- denominator...")
 Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir) #/2/np.pi#*338
-
-z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
-Mat_d.mult(p_dir.vector, z)
-p_adj_conj = conjugate_function(p_adj)
-# dot product
-denominator = p_adj_conj.vector.dot(z)
-denominator2 = vector_matrix_vector(p_adj.vector, Mat_d, p_dir.vector)
+# z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
+# Mat_d.mult(p_dir.vector, z)
+#p_adj_conj = conjugate_function(p_adj)
+# # dot product
+# denominator2 = p_adj_conj.vector.dot(z)
+denominator = vector_matrix_vector(p_adj.vector, Mat_d, p_dir.vector)
 
 print("- total shape derivative...")
 print("- numerator:", numerator)
@@ -274,10 +249,13 @@ print("- denominator:", denominator)
 # calculate quotient of complex number
 real_part = numerator.real*denominator.real + numerator.imag*denominator.imag
 imag_part = (numerator.imag*denominator.real - numerator.real*denominator.imag)
-derivative = (real_part + 1j*imag_part) / (denominator.real**2 + denominator.imag**2)
+derivative = numerator/denominator#(real_part + 1j*imag_part) / (denominator.real**2 + denominator.imag**2)
 
-derivative2 = numerator2 / denominator2
-print("- check: 1+0j==",derivative2/derivative)
+#derivative2 = numerator2 / denominator2
+#print("- check: 1+0j==",derivative2/derivative)
+print("- shape derivative1:", derivative)
+#print("- shape derivative2:", derivative2)
+
 
 #--------------------------FINALIZING-----------------------------#
 # print most important parameters and results of calculation

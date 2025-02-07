@@ -52,7 +52,7 @@ def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right',
     p.vector.setArray(vr.array) # set the function to store eigenvector
     p.x.scatter_forward()
     # calculate normalizing measure of the function with sqrt(integral(p^2)dx=1)
-    meas = np.sqrt(mesh.comm.allreduce(assemble_scalar(form(p*p*dx)), op=MPI.SUM))
+    meas = np.sqrt(mesh.comm.allreduce(assemble_scalar(form(p*p*dx)), op=MPI.SUM)) #this doesnt affect shape derivative because is cancelled later
     # only print normalization measure for right eigenvector
     if which == 'right':
         print("- measure of normalization for eigenvector: m=", round(meas.real,6))

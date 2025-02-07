@@ -101,7 +101,7 @@ else: # inhomogeneous case
     Rho_output = rparams.rho_d
 
 # define temperature gradient function in geometry
-T = rparams.temperature_step_gauss_plane(mesh, rparams.x_f, rparams.T_in, T_output, rparams.amplitude, rparams.sig)
+T = rparams.temperature_step_gauss_plane(mesh, rparams.x_f, rparams.T_in, T_output)
 #T = rparams.rhoFunctionPlane(mesh, rparams.x_f, rparams.a_f, T_output, rparams.T_in, rparams.amplitude, rparams.sig, rparams.limit) # step temperature (modified to Kornilov)
 # calculate the sound speed function from temperature
 c = sound_speed(T)
@@ -115,14 +115,14 @@ print("\n--- ASSEMBLING FLAME MATRIX ---")
 FTF = nTau(rparams.n, rparams.tau)
 # define input functions for the flame matrix
 # density function:
-rho = rparams.rhoFunctionPlane(mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u, rparams.amplitude, rparams.sig, rparams.limit)
+rho = rparams.rhoFunctionPlane(mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u)
 # use differnet functions depending on the case for heat release h and measurement w
 if homogeneous_case:
-    w = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
-    h = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
+    w = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_r, rparams.a_r)
+    h = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_f, rparams.a_f) 
 else:
-    w = rparams.gaussianFunctionHplane(mesh, rparams.x_r, rparams.a_r, rparams.amplitude, rparams.sig) 
-    h = rparams.gaussianFunctionHplane(mesh, rparams.x_f, rparams.a_f, rparams.amplitude, rparams.sig) 
+    w = rparams.gaussianFunctionHplane(mesh, rparams.x_r, rparams.a_r) 
+    h = rparams.gaussianFunctionHplane(mesh, rparams.x_f, rparams.a_f) 
 # calculate the flame matrix
 D = DistributedFlameMatrix(mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
 #*tube_height*tube_length
@@ -143,13 +143,13 @@ try:
     print("\n- DIRECT PROBLEM -")
     D.assemble_submatrices('direct') # assemble direct flame matrix
     # calculate the eigenvalues and eigenvectors
-    omega_dir, p_dir = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-2, degree=degree, maxiter=70, print_results= False)
+    omega_dir, p_dir = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-2, degree=degree, maxiter=70,problem_type='direct', print_results= False)
     print("- omega_dir:", omega_dir)
     # adjoint problem
     print("\n- ADJOINT PROBLEM -")
     D.assemble_submatrices('adjoint') # assemble adjoint flame matrix
     # calculate the eigenvalues and eigenvectors
-    omega_adj, p_adj = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-2, degree=degree, maxiter=70, print_results= False)
+    omega_adj, p_adj = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-2, degree=degree, maxiter=70,problem_type='adjoint', print_results= False)
     print("- omega_adj:", omega_adj)
 except IndexError:
     print("XXX--IndexError--XXX") # convergence of target failed in given range of iterations and tolerance
@@ -174,7 +174,6 @@ xdmf_writer(path+results_dir+"/p_adj_abs", mesh, absolute(p_adj))
 # FTF_nondim = nTau(rparams.n_nondim, rparams.tau_nondim)
 #D = DistributedFlameMatrix(mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
 D.assemble_submatrices('direct')
-
 
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
 print("\n--- CALCULATING SHAPE DERIVATIVES ---")

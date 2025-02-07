@@ -99,7 +99,7 @@ class FlameMatrix:
         return row, col, val
     
     # multiply matrix with Flame Transfer Function (FTF)
-    def assemble_matrix(self, omega, problem_type='direct'):
+    def assemble_matrix(self, omega, problem_type):
 
         if problem_type == 'direct':
             self._D = self._D_ij*self.FTF(omega) 
