@@ -5,12 +5,9 @@ adjoint approach with full border displacement of the outlet
 
 import datetime
 import os
-import sys
-
 import gmsh
 import numpy as np
 from mpi4py import MPI
-from petsc4py import PETSc
 
 # parameters of the problem
 import rparams
@@ -52,7 +49,7 @@ boundary_conditions =  {1:  {'Neumann'}, # inlet
 #--------------------------CREATE MESH----------------------------#
 print("\n--- CREATING MESH ---")
 gmsh.initialize() # start the gmsh session
-gmsh.model.add("RijkeCase") # add the model name
+gmsh.model.add("RijkeTube") # add the model name
 # locate the points of the 2D geometry: [m]
 p1 = gmsh.model.geo.addPoint(0, 0, 0, mesh_resolution)  
 p2 = gmsh.model.geo.addPoint(0, tube_height, 0, mesh_resolution)
@@ -102,7 +99,7 @@ else: # inhomogeneous case
     T_output = rparams.T_out
     Rho_output = rparams.rho_d
 # distribute temperature gradient as function on the geometry
-T = rparams.temperature_step_gauss_plane(mesh, rparams.x_f, rparams.T_in, T_output)
+T = rparams.temperature_step_function(mesh, rparams.x_f, rparams.T_in, T_output)
 # calculate the sound speed function from temperature
 c = sound_speed(T)
 # calculate the passive acoustic matrices
@@ -115,14 +112,14 @@ print("\n--- ASSEMBLING FLAME MATRIX ---")
 FTF = nTau(rparams.n, rparams.tau)
 # define input functions for the flame matrix
 # density function:
-rho = rparams.rhoFunctionPlane(mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u)
+rho = rparams.rho_function(mesh, rparams.x_f, rparams.a_f, Rho_output, rparams.rho_u)
 # use differnet functions for heat release h(x) and measurement w(x)
 if homogeneous_case:
-    w = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_r, rparams.a_r)
-    h = rparams.gaussianFunctionHplaneHomogenous(mesh, rparams.x_f, rparams.a_r)
+    w = rparams.homogeneous_flame_functions(mesh, rparams.x_r, rparams.a_r)
+    h = rparams.homogeneous_flame_functions(mesh, rparams.x_f, rparams.a_f)
 else:
-    w = rparams.gaussianFunctionHplane(mesh, rparams.x_r, rparams.a_r) 
-    h = rparams.gaussianFunctionHplane(mesh, rparams.x_f, rparams.a_f) 
+    w = rparams.flame_functions(mesh, rparams.x_r, rparams.a_r)
+    h = rparams.flame_functions(mesh, rparams.x_f, rparams.a_f)
 # calculate the flame matrix
 D = DistributedFlameMatrix(mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, degree=degree, gamma=rparams.gamma)
 
@@ -142,13 +139,13 @@ try:
     print("\n- DIRECT PROBLEM -")
     D.assemble_submatrices('direct') # assemble direct flame matrix
     # calculate the eigenvalues and eigenvectors
-    omega_dir, p_dir = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-2, degree=degree, maxiter=70, problem_type='direct', print_results= False)
+    omega_dir, p_dir = newtonSolver(matrices, D, target, nev=1, i=0, tol=1e-2, degree=degree, maxiter=70, problem_type='direct', print_results= False)
     print("- omega_dir:", omega_dir)
     # adjoint problem
     print("\n- ADJOINT PROBLEM -")
     D.assemble_submatrices('adjoint') # assemble adjoint flame matrix
     # calculate the eigenvalues and eigenvectors
-    omega_adj, p_adj = newtonSolver(matrices, D, target, nev=3, i=0, tol=1e-2, degree=degree, maxiter=70, problem_type='adjoint',print_results= False)
+    omega_adj, p_adj = newtonSolver(matrices, D, target, nev=1, i=0, tol=1e-2, degree=degree, maxiter=70, problem_type='adjoint', print_results= False)
     print("- omega_adj:", omega_adj)
 except IndexError:
     print("XXX--IndexError--XXX") # convergence of target failed in given range of iterations and tolerance
@@ -210,7 +207,7 @@ perturbed_Rijke.getInfo()
 print("\n--- REASSEMBLING PASSIVE MATRICES ---")
 # recalculate the acoustic matrices for the perturbed mesh
 # define temperature gradient function in geometry
-T_pert = rparams.temperature_step_gauss_plane(perturbed_mesh, rparams.x_f, rparams.T_in, T_output) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
+T_pert = rparams.temperature_step_function(perturbed_mesh, rparams.x_f, rparams.T_in, T_output) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
 # calculate the passive acoustic matrices
 perturbed_matrices = AcousticMatrices(perturbed_mesh, perturbed_facet_tags, boundary_conditions, T_pert , degree = degree) # very large, sparse matrices
 
@@ -222,39 +219,22 @@ diff_A = perturbed_matrices.A - matrices.A
 diff_C = perturbed_matrices.C - matrices.C
 # using formula of numeric/discrete shape derivative
 print("- assembling numerator matrix")
-omega_square = omega_dir.real**2 - omega_dir.imag**2 + 2j*omega_dir.real*omega_dir.imag # square imaginary number
-Mat_n = diff_A + omega_square * diff_C
-# multiply numerator matrix with direct and
-# y = PETSc.Vec().createSeq(Mat_n.getSize()[0]) # create empty vector to store the result of matrix-vector multiplication
-# Mat_n.mult(p_dir.vector, y) # multiply the matrix with the direct eigenfunction
-#p_adj_conj = conjugate_function(p_adj)
-# # dot product
-# numerator = p_adj_conj.vector.dot(y)
+Mat_n = diff_A + omega_dir**2 * diff_C
+# multiply numerator matrix with direct and adjoint conjugate eigenvector
+# vector_matrix_vector automatically conjugates transposes p_adj
 numerator = vector_matrix_vector(p_adj.vector, Mat_n, p_dir.vector)
-
 # assemble flame matrix
-D.assemble_submatrices('direct') # assemble direct flame matrix
-print("- denominator...")
-Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir) #/2/np.pi#*338
-# z = PETSc.Vec().createSeq(Mat_d.getSize()[0])
-# Mat_d.mult(p_dir.vector, z)
-#p_adj_conj = conjugate_function(p_adj)
-# # dot product
-# denominator2 = p_adj_conj.vector.dot(z)
+D.assemble_submatrices('direct')
+print("- assembling denominator matrix")
+Mat_d = -2*(omega_dir)*matrices.C + D.get_derivative(omega_dir)
+# multiply denominator matrix with direct and adjoint conjugate eigenvector
+# vector_matrix_vector automatically conjugates transposes p_adj
 denominator = vector_matrix_vector(p_adj.vector, Mat_d, p_dir.vector)
-
 print("- total shape derivative...")
 print("- numerator:", numerator)
 print("- denominator:", denominator)
 # calculate quotient of complex number
-real_part = numerator.real*denominator.real + numerator.imag*denominator.imag
-imag_part = (numerator.imag*denominator.real - numerator.real*denominator.imag)
-derivative = numerator/denominator#(real_part + 1j*imag_part) / (denominator.real**2 + denominator.imag**2)
-
-#derivative2 = numerator2 / denominator2
-#print("- check: 1+0j==",derivative2/derivative)
-print("- shape derivative1:", derivative)
-#print("- shape derivative2:", derivative2)
+derivative = numerator/denominator
 
 
 #--------------------------FINALIZING-----------------------------#
@@ -271,7 +251,6 @@ print(f"---> \033[1mPerturbation Distance =\033[0m {perturbation} m")
 print(f"---> \033[1mTarget =\033[0m {frequ} Hz ")
 print(f"---> \033[1mEigenfrequency =\033[0m {round(omega_dir.real/2/np.pi,4)} + {round(omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
 print(f"---> \033[1mDiscrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi,8)} + {round(derivative.imag/2/np.pi,8)}j")
-# IDEA: Helmholtz number: He=2piL/lambda=(380/166*(2*np.pi*tube_length)) or maybe #/(2*np.pi)**(0.2) IDEA on imaginary part
 print(f"---> \033[1mNormalized Discrete Shape Derivative =\033[0m {round(derivative.real/2/np.pi/perturbation,8)} + {round(derivative.imag/2/np.pi/perturbation,8)}j") 
 # close the gmsh session which was required to run for calculating shape derivatives
 gmsh.finalize()
