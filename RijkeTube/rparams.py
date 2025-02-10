@@ -5,6 +5,8 @@ import os
 from dolfinx.fem import Function, FunctionSpace
 from helmholtz_x.dolfinx_utils import normalize
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
+from helmholtz_x.shape_derivatives import ShapeDerivativesFFDRectFullBorder, ffd_displacement_vector_rect_full_border # to calculate shape derivatives
+
 
 # set path to write files
 path = os.path.dirname(os.path.abspath(__file__))
@@ -137,9 +139,11 @@ if __name__ == '__main__':
     rho_func = rho_function(mesh, x_f, a_f, rho_d, rho_u)
     T_func_temp = temperature_step_function(mesh, x_f, T_in, T_out)
     c_func = sound_speed(T_func_temp)
+    V_ffd = ffd_displacement_vector_rect_full_border(Rijke, 2, [1,0], deg=1)
     # save the functions in the InputFunctions directory as .xdmf files used to examine with paraview  
     xdmf_writer("InputFunctions/rho", mesh, rho_func)
     xdmf_writer("InputFunctions/w", mesh, w_func)
     xdmf_writer("InputFunctions/h", mesh, h_func)
     xdmf_writer("InputFunctions/c", mesh, c_func)
     xdmf_writer("InputFunctions/T", mesh, T_func_temp)
+    xdmf_writer(path+"/InputFunctions/V_ffd", mesh, V_ffd)
