@@ -4,17 +4,16 @@ Modification of the helmholtz-x repo from Ekrem Ekici for the purpose of calcula
 ## Tools and Data
 - /helmholtz-x: contains a slightly modified version of the HelmholtzX toolbox from Ekrem Ekici
 - /FTFMatrices: data for Kornilov Flame Transfer Function in state space format
-## Test Cases (prefix)
-- /RijkeTube: 2D Rijke tube geometry (r)
-- /Duct: rectangular 2D duct geometry (d)
-- /KornilovCase: Kornilov test case geometry (k)
+## Test Cases
+- /RijkeTube: 2D Rijke tube geometry (running)
+- /KornilovCase: Kornilov test case geometry (still in development)
 
 
-# Programs
-every test case has 3 programs:  
-- ()main_continuous: calculates shape derivative using continuous formula from Ekici dissertation
-- ()main_discrete: calculates shape derivative using discrete formula derived by Gregoire Varillon
-- ()params: defines up input functions and parameters for the testcase
+# Rijke Tube Programs
+in order to run a shape derivative computation, execute the desired program and parameters in:
+- continuous_shape_derivative: calculates shape derivative using continuous formula from Ekici dissertation
+- discrete_shape_derivative: calculates shape derivative using discrete formula derived by Gregoire Varillon
+-> these create a test case object from the class TestCase and execute computation using the parameters from rparams
 
 
 # Set Up
