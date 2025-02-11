@@ -27,7 +27,7 @@ boundary_conditions =  {1:  {'Neumann'}, # inlet
 # set True for homogeneous case, False for inhomogeneous case
 homogeneous_case = False
 
-#------------------------CREATE TEST CASE-----------------------#
+#---------------------------TEST CASE---------------------------#
 Rijke_Tube = test_case.TestCase(name, type, mesh_resolution, tube_length, tube_height, degree, frequ, perturbation, boundary_conditions, homogeneous_case, path)
 # compute test case
 Rijke_Tube.create_rijke_tube_mesh()

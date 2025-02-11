@@ -6,6 +6,7 @@ import datetime
 import os
 import gmsh
 import numpy as np
+import sys
 from mpi4py import MPI
 # python script imports
 import rparams
@@ -84,6 +85,8 @@ class TestCase:
         self.MeshObject = XDMFReader(self.path+"/Meshes"+self.name)
         self.mesh, self.subdomains, self.facet_tags = self.MeshObject.getAll() # mesh, domains and tags
         self.MeshObject.getInfo()
+        # save original positions of nodes and points for perturbation later
+        self.original_node_tags, self.original_node_coords , _ = gmsh.model.mesh.getNodes()
         self.p3 = p3
         self.p4 = p4
 
@@ -150,9 +153,9 @@ class TestCase:
 
     def calculate_discrete_derivative(self):
         print("\n--- PERTURBING THE MESH ---")
+        # copy the original node coordinates in order to prevent overwriting
+        node_coords = np.array(self.original_node_coords, dtype=np.float64)
         # for discrete shape derivatives the mesh needs to be perturbed
-        # read tags and coordinates of the mesh
-        node_tags, node_coords, _ = gmsh.model.mesh.getNodes()
         # assign x,y,z coordinates to separate arrays
         xcoords = node_coords[0::3] # get x-coordinates
         ycoords = node_coords[1::3] # get y-coordinates
@@ -163,15 +166,16 @@ class TestCase:
                 xcoords[i] += (x - 0.3)/(self.tube_length - 0.3) * self.perturbation
         #xcoords += xcoords * perturbation #(case for perturbing the whole duct disregarding the flame)
         # update node x coordinates in mesh to the perturbed points
-        node_coords[0::3] = xcoords
+        perturbed_node_coordinates = node_coords
+        perturbed_node_coordinates[0::3] = xcoords
         # update node positions
-        for tag, new_coords in zip(node_tags, node_coords.reshape(-1,3)):
+        for tag, new_coords in zip(self.original_node_tags, perturbed_node_coordinates.reshape(-1,3)):
             gmsh.model.mesh.setNode(tag, new_coords, [])
         # update point positions
         gmsh.model.setCoordinates(self.p3, self.perturbation + self.tube_length, self.tube_height, 0)
         gmsh.model.setCoordinates(self.p4, self.perturbation + self.tube_length, 0, 0)
         # optionally launch GUI to see the results
-        #if '-nopopup' not in sys.argv:
+        # if '-nopopup' not in sys.argv:
         #   gmsh.fltk.run()
         # save perturbed mesh data in /Meshes directory
         gmsh.write("{}.msh".format(self.path+"/Meshes"+self.name+"_perturbed")) # save as .msh file
@@ -184,7 +188,7 @@ class TestCase:
         print("\n--- REASSEMBLING PASSIVE MATRICES ---")
         # recalculate the acoustic matrices for the perturbed mesh
         # define temperature gradient function in geometry
-        T_pert = rparams.temperature_step_function(self.perturbed_mesh, rparams.x_f, rparams.T_in, self.T_out) # the central variable that affects is T_out! if changed to T_in we get the correct homogeneous starting case
+        T_pert = rparams.temperature_step_function(self.perturbed_mesh, rparams.x_f, rparams.T_in, self.T_out)
         # calculate the passive acoustic matrices
         perturbed_matrices = AcousticMatrices(self.perturbed_mesh, self.perturbed_facet_tags, self.boundary_conditions, T_pert , self.degree) # very large, sparse matrices
         print("\n--- CALCULATING DISCRETE SHAPE DERIVATIVES ---")
@@ -218,7 +222,7 @@ class TestCase:
         physical_facet_tags = {1: 'inlet', 2: 'outlet'}
         selected_facet_tag = 2 # tag of the wall to be displaced
         selected_boundary_condition = self.boundary_conditions[selected_facet_tag]
-        print("BOUNDARY:", selected_boundary_condition)
+        print("- boundary:", selected_boundary_condition)
         # [-1,0] for inlet
         # [1,0] for outlet
         norm_vector_inlet = [1,0] # normal outside vector of the wall to be displaced
