@@ -205,6 +205,7 @@ for i in range(len(xcoords)):
 ycoords[plenum_node_indices] += ycoords[plenum_node_indices] / plenum_height * perturbation
 # update node y coordinates in mesh from the perturbed points and the unperturbed original points
 node_coords[1::3] = ycoords
+
 # update node positions
 for tag, new_coords in zip(node_tags, node_coords.reshape(-1,3)):
     gmsh.model.mesh.setNode(tag, new_coords, [])

@@ -1,7 +1,7 @@
 from math import sqrt
 import numpy as np
 import os
-
+import gmsh
 from dolfinx.fem import Function, FunctionSpace
 from helmholtz_x.dolfinx_utils import normalize
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
@@ -39,7 +39,7 @@ c_out = sqrt(gamma*p_amb/rho_d)  # [m/s]
 #R_out = -0.975-0.05j # [/] 
 
 ### Flame transfer function
-u_b = 0.1006 # [m/s] mean flow velocity (bulk velocity)
+u_b = 0.1006 # [m/s] mean flow velocity/ bulk velocity
 # scale q_0 down from 3D cylinder to 2D plane
 q_0 = -27.0089*4/(np.pi*0.047) #/(0.047)/1 # [W] heat flux density: integrated value dQ from open foam
 # n-tau model parameters
@@ -125,25 +125,25 @@ def temperature_step_function(mesh, x_f, T_u, T_d, degree=1):
             T.vector.setValueLocal(i, T_d)
     return T
 
-
+#__MOVED INTO CLASS
 #---------------------------------SAVING------------------------------------#
 # only execute when the skript is run directly from terminal with python3 rparams.py:
-if __name__ == '__main__':
-    from helmholtz_x.io_utils import XDMFReader,xdmf_writer
-    # get mesh data from saved file
-    Rijke = XDMFReader("Meshes/RijkeMesh")
-    mesh, subdomains, facet_tags = Rijke.getAll()
-    # create the functions with plane flame shape
-    h_func = flame_functions(mesh, x_f, a_f)
-    w_func = flame_functions(mesh, x_r, a_r)
-    rho_func = rho_function(mesh, x_f, a_f, rho_d, rho_u)
-    T_func_temp = temperature_step_function(mesh, x_f, T_in, T_out)
-    c_func = sound_speed(T_func_temp)
-    V_ffd = ffd_displacement_vector_rect_full_border(Rijke, 2, [1,0], deg=1)
-    # save the functions in the InputFunctions directory as .xdmf files used to examine with paraview  
-    xdmf_writer("InputFunctions/rho", mesh, rho_func)
-    xdmf_writer("InputFunctions/w", mesh, w_func)
-    xdmf_writer("InputFunctions/h", mesh, h_func)
-    xdmf_writer("InputFunctions/c", mesh, c_func)
-    xdmf_writer("InputFunctions/T", mesh, T_func_temp)
-    xdmf_writer(path+"/InputFunctions/V_ffd", mesh, V_ffd)
+# if __name__ == '__main__':
+#     from helmholtz_x.io_utils import XDMFReader,xdmf_writer
+#     # get mesh data from saved file
+#     Rijke = XDMFReader("Meshes/RijkeTube")
+#     mesh, subdomains, facet_tags = Rijke.getAll()
+#     # create the functions with plane flame shape
+#     h_func = flame_functions(mesh, x_f, a_f)
+#     w_func = flame_functions(mesh, x_r, a_r)
+#     rho_func = rho_function(mesh, x_f, a_f, rho_d, rho_u)
+#     T_func_temp = temperature_step_function(mesh, x_f, T_in, T_out)
+#     c_func = sound_speed(T_func_temp)
+#     V_ffd = ffd_displacement_vector_rect_full_border(Rijke, 2, [1,0], deg=1)
+#     # save the functions in the InputFunctions directory as .xdmf files used to examine with paraview  
+#     xdmf_writer("InputFunctions/rho", mesh, rho_func)
+#     xdmf_writer("InputFunctions/w", mesh, w_func)
+#     xdmf_writer("InputFunctions/h", mesh, h_func)
+#     xdmf_writer("InputFunctions/c", mesh, c_func)
+#     xdmf_writer("InputFunctions/T", mesh, T_func_temp)
+#     xdmf_writer(path+"/InputFunctions/V_ffd", mesh, V_ffd)

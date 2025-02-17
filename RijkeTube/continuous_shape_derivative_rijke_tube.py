@@ -33,6 +33,7 @@ Rijke_Tube = test_case.TestCase(name, type, mesh_resolution, tube_length, tube_h
 Rijke_Tube.create_rijke_tube_mesh()
 Rijke_Tube.assemble_matrices()
 Rijke_Tube.solve_eigenvalue_problem()
+#Rijke_Tube.write_input_functions() # for testing
 Rijke_Tube.calculate_continuous_derivative()
 Rijke_Tube.log()
 

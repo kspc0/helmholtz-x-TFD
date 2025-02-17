@@ -9,7 +9,7 @@ import numpy as np
 import sys
 from mpi4py import MPI
 # python script imports
-import rparams
+import kparams
 # HelmholtzX utilities
 from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh # to write mesh data as files
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
@@ -24,13 +24,14 @@ from helmholtz_x.shape_derivatives import ShapeDerivativesFFDRectFullBorder, ffd
 # class for creating and computing different test cases
 class TestCase:
     # constructor
-    def __init__(self, name, type, mesh_resolution, tube_length, tube_height, degree, frequ, perturbation, boundary_conditions, homogeneous_case, path):
+    def __init__(self, name, type, mesh_resolution, plenum_length, height, slit_height, degree, frequ, perturbation, boundary_conditions, homogeneous_case, path):
         # initialize standard parameters of object
         self.type = type
         self.name = name
         self.mesh_resolution = mesh_resolution
-        self.tube_length = tube_length
-        self.tube_height = tube_height
+        self.plenum_length = plenum_length
+        self.height = height
+        self.slit_height = slit_height
         self.degree = degree
         self.perturbation = perturbation
         self.frequ = frequ
@@ -40,36 +41,46 @@ class TestCase:
         self.path = path
         # initialize parameters for homogeneous or inhomogeneous case
         if self.homogeneous_case: # homogeneous case
-            self.T_out = rparams.T_in # no temperature gradient
-            self.Rho_out = rparams.rho_u # no density gradient
+            self.T_out = kparams.T_in # no temperature gradient
+            self.Rho_out = kparams.rho_u # no density gradient
         else: # inhomogeneous case
-            self.T_out = rparams.T_out
-            self.Rho_out = rparams.rho_d
+            self.T_out = kparams.T_out
+            self.Rho_out = kparams.rho_d
 
 
-    def create_rijke_tube_mesh(self):
+    def create_kornilov_mesh(self):
         print("\n--- CREATING MESH ---")
         gmsh.initialize() # start the gmsh session
         gmsh.model.add(self.name) # add the model name
         # locate the points of the 2D geometry: [m]
         p1 = gmsh.model.geo.addPoint(0, 0, 0, self.mesh_resolution)  
-        p2 = gmsh.model.geo.addPoint(0, self.tube_height, 0, self.mesh_resolution)
-        p3 = gmsh.model.geo.addPoint(self.tube_length, self.tube_height, 0, self.mesh_resolution)
-        p4 = gmsh.model.geo.addPoint(self.tube_length, 0, 0, self.mesh_resolution)
+        p2 = gmsh.model.geo.addPoint(0, self.height, 0, self.mesh_resolution)
+        p3 = gmsh.model.geo.addPoint(self.plenum_length, self.height, 0, self.mesh_resolution)
+        p4 = gmsh.model.geo.addPoint(self.plenum_length, self.slit_height, 0, self.mesh_resolution/4) # refine the mesh at this point
+        p5 = gmsh.model.geo.addPoint(self.plenum_length+1e-3, self.slit_height, 0, self.mesh_resolution/4)
+        p6 = gmsh.model.geo.addPoint(self.plenum_length+1e-3, self.height, 0, self.mesh_resolution)
+        p7 = gmsh.model.geo.addPoint(self.plenum_length*3, self.height, 0, self.mesh_resolution)
+        p8 = gmsh.model.geo.addPoint(self.plenum_length*3, 0, 0, self.mesh_resolution)
         # create outlines by connecting points
         l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
-        l2 = gmsh.model.geo.addLine(p2, p3) # upper wall
-        l3 = gmsh.model.geo.addLine(p3, p4) # outlet boundary
-        l4 = gmsh.model.geo.addLine(p4, p1) # lower wall
+        l2 = gmsh.model.geo.addLine(p2, p3) # upper plenum wall
+        l3 = gmsh.model.geo.addLine(p3, p4) # slit wall
+        l4 = gmsh.model.geo.addLine(p4, p5) # slit wall
+        l5 = gmsh.model.geo.addLine(p5, p6) # slit wall
+        l6 = gmsh.model.geo.addLine(p6, p7) # upper combustion chamber wall
+        l7 = gmsh.model.geo.addLine(p7, p8) # outlet boundary
+        l8 = gmsh.model.geo.addLine(p8, p1) # lower symmetry boundary
+        # create extra points to outline the plenum (needed for shape derivation of upper plenum wall)
         # create curve loops for surface
-        loop1 = gmsh.model.geo.addCurveLoop([l1,l2,l3,l4]) # entire geometry
+        loop1 = gmsh.model.geo.addCurveLoop([l1,l2,l3,l4,l5,l6,l7,l8]) # entire geometry
         # create surfaces from the curved loops
         surface1 = gmsh.model.geo.addPlaneSurface([loop1]) # surface of entire geometry
         # assign physical tags for 1D boundaries
         gmsh.model.addPhysicalGroup(1, [l1], tag=1) # inlet boundary
-        gmsh.model.addPhysicalGroup(1, [l3], tag=2) # outlet boundary
-        gmsh.model.addPhysicalGroup(1, [l4], tag=3) # lower wall
-        gmsh.model.addPhysicalGroup(1, [l2], tag=4) # upper wall
+        gmsh.model.addPhysicalGroup(1, [l7], tag=2) # outlet boundary
+        gmsh.model.addPhysicalGroup(1, [l3,l4,l5,l6], tag=3) # upper combustion chamber and slit wall
+        gmsh.model.addPhysicalGroup(1, [l8], tag=4) # lower symmetry boundary
+        gmsh.model.addPhysicalGroup(1, [l2], tag=5) # upper wall of plenum
         # assign physical tag for 2D surface
         gmsh.model.addPhysicalGroup(2, [surface1], tag=1)
         # create 2D mesh
@@ -87,33 +98,33 @@ class TestCase:
         self.MeshObject.getInfo()
         # save original positions of nodes and points for perturbation later
         self.original_node_tags, self.original_node_coords , _ = gmsh.model.mesh.getNodes()
+        self.p2 = p2
         self.p3 = p3
-        self.p4 = p4
 
 
     def assemble_matrices(self):
         print("\n--- ASSEMBLING PASSIVE MATRICES ---")
         # distribute temperature gradient as function on the geometry
-        T = rparams.temperature_step_function(self.mesh, rparams.x_f, rparams.T_in, self.T_out)
+        T = kparams.plane_step_function(self.mesh, kparams.x_f, kparams.T_in, self.T_out)
         # calculate the sound speed function from temperature
         self.c = sound_speed(T)
         # calculate the passive acoustic matrices
         self.matrices = AcousticMatrices(self.mesh, self.facet_tags, self.boundary_conditions, T , self.degree) # very large, sparse matrices
         print("\n--- ASSEMBLING FLAME MATRIX ---")
-        # using nTau model to define the flame transfer function
-        FTF = nTau(rparams.n, rparams.tau)
+        # using statespace model to define the flame transfer function
+        FTF = stateSpace(kparams.S1, kparams.s2, kparams.s3, kparams.s4)
         # define input functions for the flame matrix
         # density function:
-        rho = rparams.rho_function(self.mesh, rparams.x_f, rparams.a_f, self.Rho_out, rparams.rho_u)
+        rho = kparams.plane_tanh_function(self.mesh, kparams.x_f, kparams.a_f, self.Rho_out, kparams.rho_u)
         # use differnet functions for heat release h(x) and measurement w(x)
         if self.homogeneous_case:
-            w = rparams.homogeneous_flame_functions(self.mesh, rparams.x_r, rparams.a_r)
-            h = rparams.homogeneous_flame_functions(self.mesh, rparams.x_f, rparams.a_f)
+            w = kparams.homogeneous_flame_functions(self.mesh, kparams.x_r)
+            h = kparams.homogeneous_flame_functions(self.mesh, kparams.x_f)
         else:
-            w = rparams.flame_functions(self.mesh, rparams.x_r, rparams.a_r)
-            h = rparams.flame_functions(self.mesh, rparams.x_f, rparams.a_f)
+            w = kparams.plane_gauss_function(self.mesh, kparams.x_r, kparams.a_r)
+            h = kparams.plane_gauss_function(self.mesh, kparams.x_f, kparams.a_f)
         # calculate the flame matrix
-        self.D = DistributedFlameMatrix(self.mesh, w, h, rho, T, rparams.q_0, rparams.u_b, FTF, self.degree, gamma=rparams.gamma)
+        self.D = DistributedFlameMatrix(self.mesh, w, h, rho, T, kparams.q_0, kparams.u_b, FTF, self.degree, gamma=kparams.gamma)
 
 
     def solve_eigenvalue_problem(self):
@@ -159,20 +170,27 @@ class TestCase:
         # for discrete shape derivatives the mesh needs to be perturbed
         # assign x,y,z coordinates to separate arrays
         xcoords = node_coords[0::3] # get x-coordinates
-        # perturb the chosen mesh points slightly in x direction
-        for i, x in enumerate(xcoords):
-            if x > 0.3: # only perturb parts of mesh that lie behind the flame located at 0.25m
-                xcoords[i] += (x - 0.3)/(self.tube_length - 0.3) * self.perturbation
-        #xcoords += xcoords * perturbation #(case for perturbing the whole duct disregarding the flame)
-        # update node x coordinates in mesh to the perturbed points
+        ycoords = node_coords[1::3] # get y-coordinates
+        zcoords = node_coords[2::3] # get z-coordinates
+        # create list to store the indices of the plenum nodes
+        plenum_node_indices = []
         perturbed_node_coordinates = node_coords
-        perturbed_node_coordinates[0::3] = xcoords
+        # choose points which have smaller x coordinate then 10mm or have x coordinate of 10mm and y coordinate greater than 1mm
+        # these are all the points in the plenum without the slit entry
+        for i in range(len(xcoords)):
+            if (xcoords[i] < self.plenum_length) or (xcoords[i] == self.plenum_length and ycoords[i] > self.slit_height):
+                plenum_node_indices.append(i) # store the index of the plenum nodes in this array
+        # perturb the chosen mesh points slightly in y direction
+        # perturbation is percent based on the y-coordinate
+        ycoords[plenum_node_indices] += ycoords[plenum_node_indices] / self.height * self.perturbation
+        # update node y coordinates in mesh from the perturbed points and the unperturbed original points
+        perturbed_node_coordinates[1::3] = ycoords
         # update node positions
         for tag, new_coords in zip(self.original_node_tags, perturbed_node_coordinates.reshape(-1,3)):
             gmsh.model.mesh.setNode(tag, new_coords, [])
         # update point positions
-        gmsh.model.setCoordinates(self.p3, self.perturbation + self.tube_length, self.tube_height, 0)
-        gmsh.model.setCoordinates(self.p4, self.perturbation + self.tube_length, 0, 0)
+        gmsh.model.setCoordinates(self.p2, 0, self.perturbation + self.height, 0)
+        gmsh.model.setCoordinates(self.p3, self.plenum_length, self.perturbation + self.height, 0)
         # optionally launch GUI to see the results
         # if '-nopopup' not in sys.argv:
         #   gmsh.fltk.run()
@@ -187,7 +205,7 @@ class TestCase:
         print("\n--- REASSEMBLING PASSIVE MATRICES ---")
         # recalculate the acoustic matrices for the perturbed mesh
         # define temperature gradient function in geometry
-        T_pert = rparams.temperature_step_function(self.perturbed_mesh, rparams.x_f, rparams.T_in, self.T_out)
+        T_pert = kparams.plane_step_function(self.perturbed_mesh, kparams.x_f, kparams.T_in, self.T_out)
         # calculate the passive acoustic matrices
         perturbed_matrices = AcousticMatrices(self.perturbed_mesh, self.perturbed_facet_tags, self.boundary_conditions, T_pert , self.degree) # very large, sparse matrices
         print("\n--- CALCULATING DISCRETE SHAPE DERIVATIVES ---")
@@ -218,18 +236,17 @@ class TestCase:
 
     def calculate_continuous_derivative(self):
         print("\n--- CALCULATING CONTINUOUS SHAPE DERIVATIVES ---")
-        # 1 for inlet
-        # 2 for outlet
-        physical_facet_tags = {1: 'inlet', 2: 'outlet'}
-        selected_facet_tag = 2 # tag of the wall to be displaced
+        physical_facet_tags = {1: 'inlet', 5: 'upper plenum'}
+        selected_facet_tag = 5 # tag of the wall to be displaced
         selected_boundary_condition = self.boundary_conditions[selected_facet_tag]
         print("- boundary:", selected_boundary_condition)
-        # [-1,0] for inlet
-        # [1,0] for outlet
-        norm_vector_inlet = [1,0] # normal outside vector of the wall to be displaced
+        # [1,0] for inlet
+        # [0,1] for plenum
+        norm_vector_inlet = [0,1] # normal outside vector of the wall to be displaced
         # calculate the shape derivatives for the border
         print("- calculating shape derivative")
-        self.derivative = ShapeDerivativesFFDRectFullBorder(self.MeshObject, selected_facet_tag, selected_boundary_condition, norm_vector_inlet, self.omega_dir, self.p_dir, self.p_adj, self.c, self.matrices, self.D)
+        self.derivative = ShapeDerivativesFFDRectFullBorder(self.MeshObject, selected_facet_tag, selected_boundary_condition,
+                                                             norm_vector_inlet, self.omega_dir, self.p_dir, self.p_adj, self.c, self.matrices, self.D)
 
 
     def log(self):
@@ -240,7 +257,7 @@ class TestCase:
         else:
             stability = 'stable'
         print(f"---> \033[1mMesh Resolution =\033[0m {self.mesh_resolution}")
-        print(f"---> \033[1mDimensions =\033[0m {self.tube_length}m, {self.tube_height} m")
+        print(f"---> \033[1mDimensions =\033[0m {self.plenum_length}m, {self.height} m")
         print(f"---> \033[1mPolynomial Degree of FEM =\033[0m {self.degree}")
         print(f"---> \033[1mPerturbation Distance =\033[0m {self.perturbation} m")
         print(f"---> \033[1mTarget =\033[0m {self.frequ} Hz ")
@@ -250,12 +267,19 @@ class TestCase:
 
     def write_input_functions(self):
         # create and write the functions with plane flame shape for checking in paraview
-        h_func = rparams.flame_functions(self.mesh, rparams.x_f, rparams.a_f)
-        w_func = rparams.flame_functions(self.mesh, rparams.x_r, rparams.a_r)
-        rho_func = rparams.rho_function(self.mesh, rparams.x_f, rparams.a_f, rparams.rho_d, rparams.rho_u)
-        T_func = rparams.temperature_step_function(self.mesh, rparams.x_f, rparams.T_in, rparams.T_out)
+        ### create CURVED flame functions
+        # rho_func = kparams.curved_tanh_function(self.mesh, kparams.x_f, kparams.a_f, kparams.rho_d, kparams.rho_u, kparams.amplitude, kparams.sig, kparams.limit)
+        # w_func = kparams.point_gauss_function(self.mesh, kparams.x_r, kparams.a_r)
+        # h_func = kparams.curved_gauss_function(self.mesh, kparams.x_f, kparams.a_f/2, kparams.amplitude, kparams.sig) 
+        # T_func = kparams.curved_step_function(self.mesh, kparams.x_f,kparams.T_in, kparams.T_out, kparams.amplitude, kparams.sig)
+        # c_func = sound_speed(T_func)
+        ### create PLANE flame functions
+        h_func = kparams.plane_gauss_function(self.mesh, kparams.x_f, kparams.a_f)
+        w_func = kparams.plane_gauss_function(self.mesh, kparams.x_r, kparams.a_r)
+        rho_func = kparams.plane_tanh_function(self.mesh, kparams.x_f, kparams.a_f, kparams.rho_d, kparams.rho_u)
+        T_func = kparams.plane_step_function(self.mesh, kparams.x_f, kparams.T_in, kparams.T_out)
         c_func = sound_speed(T_func)
-        V_ffd = ffd_displacement_vector_rect_full_border(self.MeshObject, 2, [1,0], deg=1)
+        V_ffd = ffd_displacement_vector_rect_full_border(self.MeshObject, 5, [0,1], deg=1)
         # save the functions in the InputFunctions directory as .xdmf files used to examine with paraview  
         xdmf_writer("InputFunctions/rho", self.mesh, rho_func)
         xdmf_writer("InputFunctions/w", self.mesh, w_func)

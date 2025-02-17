@@ -181,8 +181,6 @@ xdmf_writer(path+results_dir+"/p_adj_abs", mesh, absolute(p_adj))
 
 #-------------------CALCULATE SHAPE DERIVATIVES-------------------#
 print("\n--- CALCULATING SHAPE DERIVATIVES ---")
-# 1 for inlet
-# 5 for plenum upper wall
 physical_facet_tags = {1: 'inlet', 5: 'upper plenum'}
 selected_facet_tag = 5 # tag of the wall to be displaced
 # [1,0] for inlet

@@ -261,12 +261,14 @@ def ffd_displacement_vector_rect_full_border(geometry, surface_physical_tag, nor
     Q = VectorFunctionSpace(mesh, ("CG", deg))
     # find tags of surfaces and retrieves coordinates of these surface nodes
     facets = facet_tags.find(surface_physical_tag)
-    #print("facets", facets)
+    print("facets", facets)
     indices = locate_dofs_topological(Q, mesh.topology.dim-1 , facets)
     surface_coordinates = mesh.geometry.x[indices] # coordinates of the surface nodes of the plenum wall
     #print("surface coordinates", surface_coordinates)
+    #print("surface physical tag", type(surface_physical_tag), surface_physical_tag)
     # retrieve tag of surface boundary
     surface_elementary_tag = gmsh.model.getEntitiesForPhysicalGroup(1, surface_physical_tag)
+    #print("surface elementary tag", surface_elementary_tag)
     # get the coordinates of the surface nodes on the upper plenum wall
     # t_coord: are the y-coordinates distributed and scaled between 0-1
     node_tags, coords, t_coords = gmsh.model.mesh.getNodes(1, int(surface_elementary_tag), includeBoundary=includeBoundary, returnParametricCoord=returnParametricCoord)
