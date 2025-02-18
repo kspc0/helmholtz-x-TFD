@@ -37,3 +37,12 @@ for shape derivative using continuous formula from Dr. Ekrem Ekici dissertation:
 `~$ python3 continuous_shape_derivative_*`  
 for shape derivative using discrete formula derived by Dr. Gregoire Varillon run:  
 `~$ python3 discrete_shape_derivative_*`  
+adjust parameters in the `*params.py` files if needed or directly when building the object from class in `test_case.py`  
+### Examine Input Functions
+run the function `write_input_function()` and examine using paraview  
+### Figures
+figures are build using:  
+- `build_data_fig*.py`: computes the results and saves them as `data_fig*.txt` file
+- `plot_fig*.py`: plots the figure using matplotlib from data in `data_fig*.txt` file
+
+
