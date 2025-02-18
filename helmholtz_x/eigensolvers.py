@@ -434,11 +434,12 @@ def newtonSolver(operators, degree, D, init, nev, i, tol, maxiter, problem_type,
             D_Mat = D.adjoint_matrix
         if not B:
             L = A + omega[k] ** 2 * C - D_Mat
-            #print("- no boundary matrix")
+            print("- no boundary matrix")
             dL_domega = 2 * omega[k] * C - D.get_derivative(omega[k])
         else:
-            L = A + omega[k] * B + omega[k]** 2 * C  - D_Mat
+            L = A + omega[k] * B + omega[k] ** 2 * C  - D_Mat
             dL_domega = B + (2 * omega[k] * C) - D.get_derivative(omega[k])
+            print("- boundary matrix included")
 
         # solve the eigenvalue problem L(\omega) * p = \lambda * C * p
         # set the target to zero (shift-and-invert)

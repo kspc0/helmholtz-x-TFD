@@ -29,7 +29,7 @@ class stateSpace:
     def __call__(self, omega):
         k = 0
         omega = np.conj(omega) # why should omega be conjugated before used in FTF?
-        print("- FTF uses omega:",round(omega))
+        print("- FTF uses omega:", round(omega))
         Mat = (- 1j) ** k * np.math.factorial(k) * \
             np.linalg.matrix_power(1j * omega * self.Id - self.A, - (k + 1))
         row = np.dot(self.c, Mat) # *s3
