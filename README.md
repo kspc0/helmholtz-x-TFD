@@ -34,6 +34,6 @@ create subfolders called "/Meshes", "/Results", "/InputFunctions" within each te
 to compute derivatives for a testcase head to the corresponding folder:  
 `~$ cd KornilovCase` or `~$ cd RijkeTube`  
 for shape derivative using continuous formula from Dr. Ekrem Ekici dissertation:  
-`~$ python3 continuous_shape_derivative_*`
+`~$ python3 continuous_shape_derivative_*`  
 for shape derivative using discrete formula derived by Dr. Gregoire Varillon run:  
 `~$ python3 discrete_shape_derivative_*`  
