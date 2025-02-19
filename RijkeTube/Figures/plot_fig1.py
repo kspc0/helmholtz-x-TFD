@@ -2,7 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-path = '/home/kspc/work/helm-x/RijkeTube/Figures'
+path = os.path.dirname(os.path.abspath(__file__))
 file = os.path.join(path, 'data_fig1.txt')
 
 with open(file, 'r') as f:

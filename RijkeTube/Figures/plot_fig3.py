@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 # set path to data
-path = '/home/kspc/work/helm-x/RijkeTube/Figures'
+path = os.path.dirname(os.path.abspath(__file__))
 file = os.path.join(path, 'data_fig3.txt')
 
 # read file

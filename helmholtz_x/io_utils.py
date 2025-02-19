@@ -7,7 +7,7 @@ import os
 import json
 import ast
 
-# used to save the eigenvalue solutions omega _dir and omega_adj in a textfile
+# save the eigenvalue solutions omega _dir and omega_adj in a textfile
 def dict_writer(filename, dictionary, extension = ".txt"):
     """Writes dictionary object into a text file.
 
@@ -21,6 +21,7 @@ def dict_writer(filename, dictionary, extension = ".txt"):
     if MPI.COMM_WORLD.rank==0:
         print(filename+extension, " is saved.")
 
+# read the eigenvalue solutions omega _dir and omega_adj from a textfile
 def dict_loader(filename, extension = ".txt"):
     """Loads dictionary into python script
 
@@ -38,7 +39,7 @@ def dict_loader(filename, extension = ".txt"):
         print(filename+extension, " is loaded.")
     return data
 
-# used a lot to save files as xdmf files
+# save function spaces as .xdmf files, which can be examined with Paraview
 def xdmf_writer(name, mesh, function):
     """ writes functions into xdmf file
 
@@ -56,7 +57,6 @@ def xdmf_writer(name, mesh, function):
     else:
         function_interpolation = function
 
-
     with XDMFFile(MPI.COMM_WORLD, name+".xdmf", "w", encoding=XDMFFile.Encoding.HDF5 ) as xdmf:
         xdmf.write_mesh(mesh)
         xdmf.write_function(function_interpolation)
@@ -72,7 +72,7 @@ def vtk_writer(name, mesh, function):
     with VTKFile(MPI.COMM_WORLD, name+".pvd", "w") as vtk:
         vtk.write_mesh(mesh)
         vtk.write_function(function)
-        
+
 def create_mesh(mesh, cell_type, prune_z):
     """Subroutine for mesh creation by using meshio library
 
@@ -97,6 +97,7 @@ def create_mesh(mesh, cell_type, prune_z):
 
     return out_mesh
 
+# saves mesh files as .xdmf files, which can be examined with Paraview
 def write_xdmf_mesh(name, dimension, write_edge=False):
     """Writes gmsh (.msh) mesh as an .xdmf mesh
 
@@ -128,7 +129,7 @@ def write_xdmf_mesh(name, dimension, write_edge=False):
                 xdmf_edge_name = name + "_edgetags.xdmf"
                 meshio.write(xdmf_edge_name, edge_mesh)
             
-        # Create and save one file for the mesh, and one file for the facets and one file for the edges
+        # create and save one file for the mesh, and one file for the facet tags
         xdmf_name = name + ".xdmf"
         xdmf_tags_name = name + "_tags.xdmf"
         
@@ -211,7 +212,7 @@ class XDMFReader:
     def getInfo(self):
         t_imap = self.mesh.topology.index_map(self.mesh.topology.dim)
         num_cells = t_imap.size_local + t_imap.num_ghosts
-        total_num_cells = MPI.COMM_WORLD.allreduce(num_cells, op=MPI.SUM) #sum all cells and distribute to each process
+        total_num_cells = MPI.COMM_WORLD.allreduce(num_cells, op=MPI.SUM)
         if MPI.COMM_WORLD.Get_rank()==0:
             print("Number of cells:  {:,}".format(total_num_cells))
             print("Number of cores: ", MPI.COMM_WORLD.Get_size())

@@ -3,21 +3,19 @@ python class for computing test cases in the helmholtzX-TFD project
 '''
 # standard python libraries
 import datetime
-import os
 import gmsh
 import numpy as np
-import sys
-from mpi4py import MPI
-import distribute_params as dist_params
 # HelmholtzX utilities
+import helmholtz_x.distribute_params as dist_params
 from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh # to write mesh data as files
 from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed from temperature
 from helmholtz_x.acoustic_matrices import AcousticMatrices # to assemble the acoustic matrices for discrete Helm. EQU
 from helmholtz_x.flame_transfer_function import nTau, stateSpace # to define the flame transfer function
 from helmholtz_x.flame_matrices import DistributedFlameMatrix # to define the flame matrix for discrete Helm. EQU
 from helmholtz_x.eigensolvers import newtonSolver # to solve the system
+from helmholtz_x.eigenvectors import normalize_adjoint
 from helmholtz_x.petsc4py_utils import vector_matrix_vector
-from helmholtz_x.shape_derivatives import ShapeDerivativesFFDRectFullBorder, ffd_displacement_vector_rect_full_border # to calculate shape derivatives
+from helmholtz_x.shape_derivatives import ShapeDerivativeFullBorder, ffd_displacement_vector_full_border # to calculate shape derivatives
 
 
 # class for computing different test cases
@@ -317,6 +315,7 @@ class TestCase:
         print("- assembling numerator matrix")
         Mat_n = diff_A + self.omega_dir**2 * diff_C
         # multiply numerator matrix with direct and adjoint conjugate eigenvector
+        #p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
         # vector_matrix_vector automatically conjugates transposes p_adj
         numerator = vector_matrix_vector(self.p_adj.vector, Mat_n, self.p_dir.vector)
         # assemble flame matrix
@@ -348,7 +347,7 @@ class TestCase:
         print("- boundary:", selected_boundary_condition)
         # calculate the shape derivatives for the border
         print("- calculating shape derivative")
-        self.derivative = ShapeDerivativesFFDRectFullBorder(self.MeshObject, selected_facet_tag, selected_boundary_condition, norm_vector, self.omega_dir, self.p_dir, self.p_adj, self.c, self.matrices, self.D)
+        self.derivative = ShapeDerivativeFullBorder(self.MeshObject, selected_facet_tag, selected_boundary_condition, norm_vector, self.omega_dir, self.p_dir, self.p_adj, self.c, self.matrices, self.D)
 
     # terminal log of most important parameters and results of the calculation
     def log(self):
@@ -375,7 +374,7 @@ class TestCase:
         T_func = dist_params.step_function(self.mesh, self.par.x_f, self.par.T_in, self.par.T_out)
         c_func = sound_speed(T_func)
         # displacement vector for the continuous shape derivative calculation
-        V_ffd = ffd_displacement_vector_rect_full_border(self.MeshObject, 5, [0,1], deg=1)
+        V_ffd = ffd_displacement_vector_full_border(self.MeshObject, 5, [0,1], deg=1)
         # save the functions in the InputFunctions directory as .xdmf files used to examine with paraview  
         xdmf_writer("InputFunctions/rho", self.mesh, rho_func)
         xdmf_writer("InputFunctions/w", self.mesh, w_func)

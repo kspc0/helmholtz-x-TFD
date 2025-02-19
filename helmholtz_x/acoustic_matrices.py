@@ -5,18 +5,14 @@ from .solver_utils import info
 from ufl import Measure, TestFunction, TrialFunction, grad, inner
 from petsc4py import PETSc
 from mpi4py import MPI
-import os
 import numpy as np
-from helmholtz_x.io_utils import XDMFReader,xdmf_writer
 
 
-
-# find the acoustic matrices A,B and C for discrete helm. EQU
+# find the acoustic matrices A, B and C for discrete helmholtz equation
 class AcousticMatrices:
-
+    # constructor
     def __init__(self, mesh, facet_tags, boundary_conditions,
-                 parameter, degree=1): # degree=1 is the default, but can be overwritten
-
+                 parameter, degree=1):
         self.mesh = mesh
         self.facet_tags = facet_tags
         self.boundary_conditions = boundary_conditions
@@ -26,31 +22,20 @@ class AcousticMatrices:
         self.fdim = self.mesh.topology.dim - 1
         self.dx = Measure('dx', domain=mesh) # volume/area
         self.ds = Measure('ds', domain=mesh, subdomain_data=facet_tags) # boundaries
-
         # creating the function space
         # degree gives the base of the used polynomial for the test function later
-        self.V = FunctionSpace(self.mesh, ("Lagrange", degree)) # original: Lagrange
-
+        self.V = FunctionSpace(self.mesh, ("Lagrange", degree))
         # trial and test function definition
         self.phi_i = TrialFunction(self.V)
         self.phi_j = TestFunction(self.V)
-
-        # Add a part to visualize Test and Trial functions
-        #self.phi_i.interpolate(lambda x: self.phi_i.eval(x))
-        #xdmf_writer("InputFunctions/phi_i", mesh, self.phi_i)
-
-        # Create a folder to save the matrices for heat map analysis
-        save_path = "/home/kspc/TUMStudium/work/HelmholtzX/sourcecode/KornilovCase/HeatMapsMatrices"
-        os.makedirs(save_path, exist_ok=True)
         
         self.AreaConstant = Constant(mesh, PETSc.ScalarType(1))
-
         self.bcs_Dirichlet = []
         self.integrals_R = []
+        # define placeholder for matrices
         self.a_form = None
         self.b_form = None
         self.c_form = None
-
         self._A = None
         self._B = None
         self._B_adj = None
@@ -59,11 +44,11 @@ class AcousticMatrices:
         if MPI.COMM_WORLD.rank == 0:
             print("- Degree of basis functions: ", self.degree)
 
-        if self.parameter.name =="temperature":
+        # usually temperature is the case, as we create the matrices from distribution of T
+        if self.parameter.name == "temperature":
             self.c = sound_speed_variable_gamma(self.mesh, parameter, degree=degree)
             self.T = self.parameter
             self.gamma = gamma_function(self.T)
-            #print("C_FUNCTION::::",self.c)
             info("/\ Temperature function is used for passive flame matrices.")
         else:
             self.c = parameter
@@ -86,7 +71,6 @@ class AcousticMatrices:
 
             if 'Robin' in boundary_conditions[boundary]:
                 R = boundary_conditions[boundary]['Robin']
-                #print("USING R:"    ,R)
                 Z = (1+R)/(1-R)
                 integrals_Impedance = 1j * self.c / Z * inner(self.phi_i, self.phi_j) * self.ds(boundary)
                 self.integrals_R.append(integrals_Impedance)
@@ -124,12 +108,7 @@ class AcousticMatrices:
         A.assemble() # finalizing assembly
         info("- Matrix A is assembled.")
         self._A = A
-        
-        # TEST  print matrix as txt file 
-        viewer = PETSc.Viewer().createASCII(os.path.join(save_path, 'AcousticMatrixA.txt'), mode=PETSc.Viewer.Mode.WRITE)
-        viewer(A)
-        info("- Matrix A is saved as txt file.")
-        
+
         # assemble matrix B - boundary matrix
         if self.integrals_R:
             self.b_form = form(sum(self.integrals_R))
@@ -142,23 +121,13 @@ class AcousticMatrices:
             info("- Matrix B is assembled.")
             self._B = B
             self._B_adj = B_adj
-            viewer = PETSc.Viewer().createASCII(os.path.join(save_path, 'AcousticMatrixB.txt'), mode=PETSc.Viewer.Mode.WRITE)
-            viewer(B)
-            info("- Matrix B is saved as txt file.")
 
         # assemble matrix C - mass matrix
         self.c_form = form(inner(self.phi_i , self.phi_j) * self.dx)
-        #print("C_FORM:",self.c_form)
         C = assemble_matrix(self.c_form, self.bcs_Dirichlet)
         C.assemble()
         info("- Matrix C is assembled.")
         self._C = C
-        #C_dense = C.convert('dense')
-        #print("C:---------------",C_dense.getDenseArray())
-        # TEST  print matrix as txt file 
-        viewer = PETSc.Viewer().createASCII(os.path.join(save_path, 'AcousticMatrixC.txt'), mode=PETSc.Viewer.Mode.WRITE)
-        viewer(C)
-        info("- Matrix C is saved as txt file.")
 
     @property
     def A(self):

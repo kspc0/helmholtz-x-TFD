@@ -19,9 +19,9 @@ class FlameMatrix:
         self.u_b = u_b
         self.FTF = FTF
         self.degree = degree
-        self.bloch_object=bloch_object
         self.tol = tol
         
+        # create function space
         self.V = FunctionSpace(mesh, ("Lagrange", degree))
         self.dofmaps = self.V.dofmap
         # definition of trial and test function
@@ -29,12 +29,11 @@ class FlameMatrix:
         self.phi_j = TestFunction(self.V)
         self.gdim = self.mesh.geometry.dim
 
-        # Matrix utils
+        # matrix utils
         self.global_size = self.V.dofmap.index_map.size_global
         self.local_size = self.V.dofmap.index_map.size_local
 
-        # Vector for reference direction
-        # why is n_r defined like this? why these directions?
+        # vector for reference direction
         if self.gdim == 1:
             self.n_r = as_vector([1])
         elif self.gdim == 2:
@@ -42,7 +41,7 @@ class FlameMatrix:
         else:
             self.n_r = as_vector([0,0,1])
 
-        # Utility objects for flame matrix
+        # placeholder objects for flame matrix
         self._D_ij = None
         self._D_ij_adj = None
         self._D = None
@@ -61,7 +60,7 @@ class FlameMatrix:
     def adjoint_submatrices(self):
         return self._D_ij_adj
     
-    # what is this?
+    # method for finding non-zero indices and values of the matrix
     def indices_and_values(self, form):
 
         temp = assemble_vector(form)
@@ -77,7 +76,7 @@ class FlameMatrix:
         return packed
 
     @staticmethod
-    # first create a quite empty matrix?
+    # prepare data for constructing sparse matrix
     def get_sparse_matrix_data(left, right, problem_type='direct'):
         if problem_type=='direct':
             row = [item[0] for item in left]
@@ -98,11 +97,11 @@ class FlameMatrix:
 
         return row, col, val
     
-    # multiply matrix with Flame Transfer Function (FTF)
+    # multiply matrix with Flame Transfer Function (FTF) - last step of matrix assembly
     def assemble_matrix(self, omega, problem_type):
 
         if problem_type == 'direct':
-            self._D = self._D_ij*self.FTF(omega) 
+            self._D = self._D_ij * self.FTF(omega) 
             info("- Direct matrix D is assembling...")
        
         elif problem_type == 'adjoint':
@@ -113,6 +112,7 @@ class FlameMatrix:
         
         info("- Matrix D is assembled.")
     
+    # assemble the derivative of the matrix
     def get_derivative(self, omega):
         info("- Assembling derivative of matrix D..")
         print("- FTF derivative:", self.FTF.derivative(omega))
@@ -120,104 +120,28 @@ class FlameMatrix:
         info("- Derivative of matrix D is assembled.")
         return dD_domega
 
-    # is this even used?
-    def blochify(self, problem_type='direct'):
 
-        if problem_type == 'direct':
-            D_ij_bloch = self.bloch_object.blochify(self.submatrices)
-            self._D_ij = D_ij_bloch
-
-        elif problem_type == 'adjoint':
-            D_ij_adj_bloch = self.bloch_object.blochify(self.adjoint_submatrices)
-            self._D_ij_adj = D_ij_adj_bloch
-        else:
-            ValueError("The problem type should be specified as 'direct' or 'adjoint'.")
-    
-
-
-### TYPE 1: pointwise (not used)
-class PointwiseFlameMatrix(FlameMatrix):
-
-    def __init__(self, mesh, subdomains, x_r, h, rho_u, q_0, u_b, FTF, degree=1, bloch_object=None, gamma=1.4, tol=1e-10):
-
-        super().__init__(mesh, h, q_0, u_b, FTF, degree, bloch_object, tol)
-        self.x_r = x_r
-        self.rho_u = rho_u
-        self.gamma = gamma
-        self.dx = Measure("dx", subdomain_data=subdomains)
-
-    def _assemble_vectors(self, flame, point):
-        # Assemble the flame matrix D(omega) if pointwise
-        left_form = form((self.gamma - 1) * self.q_0 / self.u_b * inner(self.h, self.phi_j)*self.dx(flame))
-        left_vector = self.indices_and_values(left_form)
-
-        # he?
-        _, _, owning_points, cell = determine_point_ownership( self.mesh._cpp_object, point)#, 1e-10) manually changed because gives ERROR
-        right_vector = []
-
-        if len(cell) > 0: # Only add contribution if cell is owned 
-            cell_geometry = self.mesh.geometry.x[self.mesh.geometry.dofmap[cell[0]], :self.gdim]
-            point_ref = self.mesh.geometry.cmaps[0].pull_back([point], cell_geometry)
-            right_form = Expression(inner(grad(TestFunction(self.V)), self.n_r), point_ref, comm=MPI.COMM_SELF)
-            dphij_x_rs = right_form.eval(self.mesh, cell)[0]           
-            right_values = dphij_x_rs / self.rho_u
-            global_dofs = self.dofmaps.index_map.local_to_global(self.dofmaps.cell_dofs(cell[0]))
-            for global_dof, right_value in zip(global_dofs, right_values):
-                right_vector.append([global_dof, right_value ])
-
-        right_vector = broadcast_vector(right_vector)
-
-        return left_vector, right_vector
-
-    # why are submatrices necessary?
-    def assemble_submatrices(self, problem_type='direct'):
-
-        info("- Generating matrix D..")
-
-        mat = PETSc.Mat().create(PETSc.COMM_WORLD)
-        mat.setSizes([(self.local_size, self.global_size), (self.local_size, self.global_size)])
-        mat.setType('aij') 
-        mat.setUp()
-
-        for flame, point in enumerate(self.x_r):
-            
-            left, right = self._assemble_vectors(flame, point)
-            row,col,val = self.get_sparse_matrix_data(left, right, problem_type=problem_type)
-
-            mat.setValues(row,col,val, addv=PETSc.InsertMode.ADD_VALUES)
-            info("- Matrix contribution of flame "+str(flame)+" is computed.")
-
-        mat.assemblyBegin()
-        mat.assemblyEnd()
-
-        info ("- Pointwise Submatrix D is Assembled.")
-
-        if problem_type == 'direct':
-            self._D_ij = mat
-        elif problem_type == 'adjoint':
-            self._D_ij_adj = mat
-        else:
-            ValueError("The problem type should be specified as 'direct' or 'adjoint'.")
-
-
-### TYPE 2: distributed
+# assembly of flame matrix over entire domain
 class DistributedFlameMatrix(FlameMatrix):
 
     def __init__(self, mesh, w, h, rho, T, q_0, u_b, FTF, degree=1, bloch_object=None, gamma=None, tol=1e-5):
         super().__init__(mesh, h, q_0, u_b, FTF, degree, bloch_object, tol)
 
-        if gamma==None: # Variable gamma depends on temperature
+        if gamma==None: # variable gamma depends on temperature
             gamma = gamma_function(T) 
 
-        # Assemble the flame matrix symbolically
+        # assemble the flame matrix symbolically
+        # split into left and right side because it simplifies separation of adjoint and direct calculation
         self.left_form = form((gamma - 1) * q_0 / u_b * self.phi_i * h *  dx)
         self.right_form = form(inner(self.n_r,grad(self.phi_j)) / rho * w * dx)
     
+    # assembly vectors and enable splitting computation between different processes
     def _assemble_vectors(self, problem_type='direct'):
        
         left_vector = self.indices_and_values(self.left_form)
         right_vector = self.indices_and_values(self.right_form)
 
+        # invert left and right vector for adjoint and direct problem
         if problem_type == 'direct':
             left_vector = distribute_vector_as_chunks(left_vector)
             right_vector = broadcast_vector(right_vector)
@@ -229,7 +153,7 @@ class DistributedFlameMatrix(FlameMatrix):
 
         return left_vector, right_vector
 
-    # why is this necessary?
+    # assemble final matrix by combining left and right form
     def assemble_submatrices(self, problem_type='direct'):
 
         mat = PETSc.Mat().create(PETSc.COMM_WORLD)
@@ -251,6 +175,7 @@ class DistributedFlameMatrix(FlameMatrix):
 
         info ("- Distributed Submatrix D is Assembled.")
 
+        # choose if left of right submatrix is assembled
         if problem_type == 'direct':
             self._D_ij = mat
         elif problem_type == 'adjoint':
