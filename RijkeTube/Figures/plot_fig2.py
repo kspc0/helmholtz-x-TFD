@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
+fontsize=26
 # set path to data
 path = os.path.dirname(os.path.abspath(__file__))
 file = os.path.join(path, 'data_fig2.txt')
@@ -47,11 +48,11 @@ ax.plot(duct, discrete_refined, marker='x', label='Discrete Shape Derivative')
 ax.plot(duct, discrete, marker='x', label='Discrete Shape Derivative (coarser mesh)')
 
 # Set labels and title
-ax.set_xlabel('Duct length [m]')
-ax.set_ylabel('Shape Derivatives [1/(ms)]')
-ax.set_title('Comparison of Shape Derivatives Derivatives on homogeneous Rijke tube')
-ax.legend(fontsize=16)
+ax.set_xlabel('Duct length [m]', fontsize=fontsize)
+ax.set_ylabel('Shape Derivatives [1/(ms)]', fontsize=fontsize)
+ax.legend(fontsize=fontsize)
 ax.grid(True)
+ax.tick_params(axis='both', which='major', labelsize=24)
 
 # Adjust layout
 plt.tight_layout()

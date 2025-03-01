@@ -1,4 +1,4 @@
-from .petsc4py_utils import multiply, vector_matrix_vector, matrix_vector, FixSign
+from .petsc4py_utils import multiply, vector_matrix_vector, matrix_vector, FixSign, conjugate
 from dolfinx.fem import Function, FunctionSpace, Expression, form
 from ufl import dx, VectorElement, grad, inner, sqrt
 from dolfinx.fem.assemble import assemble_scalar
@@ -75,8 +75,8 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
 
     B = matrices.B
 
-    p_dir_vec = p_dir.vector
-    p_adj_vec = p_adj.vector
+    p_dir_vec = p_dir.vector.copy() # adding .copy() to avoid changing the original vector?
+    p_adj_vec = p_adj.vector.copy() # adding .copy() to avoid changing the original vector?
 
     # normalize according to derivation of shape derivative
     if not B and not D:
@@ -106,7 +106,7 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
     p_adj_vec = multiply(p_adj_vec, 1 / meas) # normalize by division of measure
 
     # create new vector to store the normalized adjoint eigenvector
-    p_adj1 = p_adj # ? need to add .copy() if calculate parallel two derivatives for inlet and outlet
+    p_adj1 = p_adj.copy() # adding .copy() to avoid changing the original vector?
     p_adj1.name = "p_adj"
     p_adj1.vector.setArray(p_adj_vec.getArray())
     p_adj1.x.scatter_forward()

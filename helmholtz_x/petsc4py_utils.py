@@ -34,7 +34,7 @@ def conjugate(y0):
 
 def conjugate_function(p):
 
-    p_conj = p # adding .copy() to avoid changing the original vector?
+    p_conj = p.copy() # adding .copy() to avoid changing the original vector?
     p_conj.x.array[:] = np.conjugate(p_conj.x.array)
     
     return p_conj

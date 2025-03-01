@@ -14,7 +14,7 @@ from helmholtz_x.flame_transfer_function import nTau, stateSpace # to define the
 from helmholtz_x.flame_matrices import DistributedFlameMatrix # to define the flame matrix for discrete Helm. EQU
 from helmholtz_x.eigensolvers import newtonSolver # to solve the system
 from helmholtz_x.eigenvectors import normalize_adjoint
-from helmholtz_x.petsc4py_utils import vector_matrix_vector
+from helmholtz_x.petsc4py_utils import vector_matrix_vector, conjugate, conjugate_function
 from helmholtz_x.shape_derivatives import ShapeDerivativeFullBorder, ffd_displacement_vector_full_border # to calculate shape derivatives
 
 
@@ -315,7 +315,6 @@ class TestCase:
         print("- assembling numerator matrix")
         Mat_n = diff_A + self.omega_dir**2 * diff_C
         # multiply numerator matrix with direct and adjoint conjugate eigenvector
-        #p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
         # vector_matrix_vector automatically conjugates transposes p_adj
         numerator = vector_matrix_vector(self.p_adj.vector, Mat_n, self.p_dir.vector)
         # assemble flame matrix
@@ -332,6 +331,14 @@ class TestCase:
         self.derivative = numerator/denominator
         # normalize with the perturbation
         self.derivative = self.derivative / self.perturbation
+
+    def calculate_discrete_derivative_alternative(self):
+        diff_A = self.perturbed_matrices.A - self.matrices.A
+        diff_C = self.perturbed_matrices.C - self.matrices.C
+        # using formula of numeric/discrete shape derivative
+        Mat_n = diff_A + self.omega_dir**2 * diff_C
+        self.p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
+        self.derivative = vector_matrix_vector(self.p_adj_norm.vector, Mat_n, self.p_dir.vector)/-self.perturbation
 
     # calculate the shape derivative using continuous formula from Dr. Ekrem Ekici dissertation
     def calculate_continuous_derivative(self):
