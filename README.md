@@ -57,10 +57,10 @@ for shape derivative using discrete formula derived by Varillon run:
 `~$ python3 discrete_shape_derivative_*`  
 adjust parameters in the `*params.py` files if needed or directly when building the object from class in `test_case.py`  
 ### Examine Input Functions
-run the function `write_input_function()` and examine using paraview  
+to examine the input functions h,w,T,rho,c and the free form deformation field, run the function `write_input_function()` and examine .xdmf files using paraview  
 ### Figures
-figures are build using:  
+to reproduce the figures from the thesis paper this method can be used:  
 - `build_data_fig*.py`: computes the results and saves them as `data_fig*.txt` file
-- `plot_fig*.py`: plots the figure using matplotlib from data in `data_fig*.txt` file
+- `plot_fig*.py`: plots the figure using python matplotlib from data in `data_fig*.txt` file
 
 
