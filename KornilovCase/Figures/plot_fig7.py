@@ -4,7 +4,7 @@ import os
 
 # set path to data
 path = os.path.dirname(os.path.abspath(__file__))
-file = os.path.join(path, 'data_fig3.txt')
+file = os.path.join(path, 'data_fig7.txt')
 
 # read file
 with open(file, 'r') as f:
@@ -19,7 +19,7 @@ discrete = []
 # read the data from the file
 for line in lines[1:]: # skip the first line
     duc, eig, con, dis = line.strip().split(',')
-    duct.append(round(float(duc),1))
+    duct.append(round(float(duc),5))
     eigenvalues.append(complex(eig)/2/np.pi)
     continuous.append(complex(con))
     discrete.append(complex(dis))
@@ -38,9 +38,9 @@ ax.scatter(eigenvalues.real, eigenvalues.imag, s=100 ,color='blue', label='Eigen
 # Add labels to each point
 for i, txt in enumerate(duct):
     ax.annotate(f'{txt}', (eigenvalues[i].real, eigenvalues[i].imag), fontsize=22,
-                 textcoords="offset points", xytext=(0,15), ha='center')
+                 textcoords="offset points", xytext=(30,15), ha='center')
 
-scale = 18
+scale = 50000
 # Add arrows for continuous and discrete shape derivatives
 for i in range(len(eigenvalues)):
     ax.quiver(eigenvalues[i].real, eigenvalues[i].imag, continuous[i].real/scale, continuous[i].imag/scale,

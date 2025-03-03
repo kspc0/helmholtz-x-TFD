@@ -1,5 +1,5 @@
 '''
-compute data of figure2: comparison of discrete, analytic and continuous shape derivative for homogeneous Rijke tube
+compute data of figure2: comparison of discrete, analytic and continuous shape derivative for acoustic duct
 '''
 
 import os

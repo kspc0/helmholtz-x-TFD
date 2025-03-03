@@ -4,7 +4,7 @@ import os
 
 # set path to data
 path = os.path.dirname(os.path.abspath(__file__))
-file = os.path.join(path, 'data_fig3.txt')
+file = os.path.join(path, 'data_fig5.txt')
 
 # read file
 with open(file, 'r') as f:
@@ -31,7 +31,7 @@ continuous = np.array(continuous)
 discrete = np.array(discrete)
 
 # Create a figure with a single subplot
-fig, ax = plt.subplots(figsize=(20, 16))
+fig, ax = plt.subplots(figsize=(20, 6))
 
 # Plot eigenvalues on the complex plane
 ax.scatter(eigenvalues.real, eigenvalues.imag, s=100 ,color='blue', label='Eigenvalues')
@@ -41,14 +41,18 @@ for i, txt in enumerate(duct):
                  textcoords="offset points", xytext=(0,15), ha='center')
 
 scale = 18
+offset = 0.01
 # Add arrows for continuous and discrete shape derivatives
 for i in range(len(eigenvalues)):
-    ax.quiver(eigenvalues[i].real, eigenvalues[i].imag, continuous[i].real/scale, continuous[i].imag/scale,
+    ax.quiver(eigenvalues[i].real, eigenvalues[i].imag+offset, continuous[i].real/scale, continuous[i].imag/scale,
                angles='xy', scale_units='xy', scale=1, color='red', label='Continuous' if i == 0 else "", width=0.0025)
-    ax.quiver(eigenvalues[i].real, eigenvalues[i].imag, discrete[i].real/scale, discrete[i].imag/scale,
+    ax.quiver(eigenvalues[i].real, eigenvalues[i].imag-offset, discrete[i].real/scale, discrete[i].imag/scale,
                angles='xy', scale_units='xy', scale=1, color='green', label='Discrete' if i == 0 else "", width=0.0025)
     #ax.arrow(eigenvalues[i].real, eigenvalues[i].imag, continuous[i].real/scale, continuous[i].imag/scale, head_width=0.01, head_length=1)
     #ax.arrow(eigenvalues[i].real, eigenvalues[i].imag, discrete[i].real/scale, discrete[i].imag/scale, head_width=0.01, head_length=1)
+
+# Set the range of the y axis
+ax.set_ylim(-0.5, 0.5)
 
 # Set the fontsize of the tick labels
 ax.tick_params(axis='both', which='major', labelsize=24)

@@ -1,5 +1,5 @@
 '''
-compute data of figure3: shape optimization with discrete and continuous shape derivative for 2D Rijke tube
+compute data of figure5: shape optimization with discrete and continuous shape derivative for acoustic duct
 '''
 
 import os
@@ -24,7 +24,7 @@ tube_length_list = np.linspace(1,2, num=11)
 frequ_list = rparams.c_amb/2/tube_length_list # calculate expected frequencies for Dirichlet-Neumann boundary conditions
 
 for tube_length, frequ in zip(tube_length_list, frequ_list):
-    Rijke_Tube = test_case.TestCase("/RijkeTube", type, False, parent_path)
+    Rijke_Tube = test_case.TestCase("/RijkeTube", type, True, parent_path)
     # set different parameters than the standard used in rparams.py
     Rijke_Tube.length = tube_length
     Rijke_Tube.frequ = frequ
@@ -46,7 +46,7 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
     del Rijke_Tube
 
 # save the real and imaginary derivatives along with the perturbations to a text file
-output_file = os.path.join(path, 'data_fig3.txt')
+output_file = os.path.join(path, 'data_fig5.txt')
 with open(output_file, 'w') as f:
     f.write("duct length, eigenvalues, continuous, discrete\n")
     for duc, eig, con, dis, in zip(tube_length_list, eigenvalues, continuous_shape_derivatives, discrete_shape_derivatives):

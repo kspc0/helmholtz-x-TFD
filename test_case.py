@@ -60,14 +60,15 @@ class TestCase:
         gmsh.initialize() # start the gmsh session
         gmsh.model.add(self.name) # add the model name
         self.slit_height = 1e-3 # height of the slit
+        self.combustion_chamber_height = 2.5e-3 # height of the combustion chamber
         # locate the points of the 2D geometry: [m]
         p1 = gmsh.model.geo.addPoint(0, 0, 0, self.mesh_resolution)  
         p2 = gmsh.model.geo.addPoint(0, self.height, 0, self.mesh_resolution)
         p3 = gmsh.model.geo.addPoint(self.length, self.height, 0, self.mesh_resolution)
         p4 = gmsh.model.geo.addPoint(self.length, self.slit_height, 0, self.mesh_resolution/4) # refine the mesh at this point
         p5 = gmsh.model.geo.addPoint(self.length+1e-3, self.slit_height, 0, self.mesh_resolution/4)
-        p6 = gmsh.model.geo.addPoint(self.length+1e-3, self.height, 0, self.mesh_resolution)
-        p7 = gmsh.model.geo.addPoint(self.length*3, self.height, 0, self.mesh_resolution)
+        p6 = gmsh.model.geo.addPoint(self.length+1e-3, self.combustion_chamber_height, 0, self.mesh_resolution)
+        p7 = gmsh.model.geo.addPoint(self.length*3, self.combustion_chamber_height, 0, self.mesh_resolution)
         p8 = gmsh.model.geo.addPoint(self.length*3, 0, 0, self.mesh_resolution)
         # create outlines by connecting points
         l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
