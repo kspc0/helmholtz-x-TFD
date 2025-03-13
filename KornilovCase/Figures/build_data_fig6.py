@@ -21,7 +21,8 @@ KornilovCase.solve_eigenvalue_problem()
 
 # calculate shape derivatives for different perturbations
 discrete_shape_derivatives = []
-perturbations = np.linspace(0.00001,0.003, num=30)
+# total height of kornilov case l=2.5e-3m - perturbation should be less than 1/3 of l
+perturbations = np.linspace(1e-6, 4e-4 , num=30)
 
 for perturbation in perturbations:
     # set new perturbation distance
