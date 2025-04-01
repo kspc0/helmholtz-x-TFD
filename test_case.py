@@ -4,6 +4,7 @@ python class for computing test cases in the helmholtzX-TFD project
 # standard python libraries
 import datetime
 import gmsh
+import sys
 import numpy as np
 # HelmholtzX utilities
 import helmholtz_x.distribute_params as dist_params
@@ -140,7 +141,7 @@ class TestCase:
         gmsh.model.geo.synchronize()
         gmsh.model.mesh.generate(2)
         # optionally launch GUI to see the results
-        #if '-nopopup' not in sys.argv:
+        # if '-nopopup' not in sys.argv:
         #   gmsh.fltk.run() 
         # save data in /Meshes directory
         gmsh.write("{}.msh".format(self.path+"/Meshes"+self.name)) # save as .msh file
@@ -194,14 +195,9 @@ class TestCase:
             print("\n- DIRECT PROBLEM -")
             self.D.assemble_submatrices('direct') # assemble direct flame matrix
             # calculate the eigenvalues and eigenvectors
-            omega_dir, p_dir = newtonSolver(self.matrices, self.degree, self.D, target, nev=1, i=0, tol=1e-2, maxiter=70, problem_type='direct', print_results= False)
+            omega_dir, p_dir, p_adj = newtonSolver(self.matrices, self.degree, self.D, target, nev=1, i=0, tol=1e-2, maxiter=70, problem_type='direct', print_results= False)
             print("- omega_dir:", omega_dir)
-            # adjoint problem
-            print("\n- ADJOINT PROBLEM -")
-            self.D.assemble_submatrices('adjoint') # assemble adjoint flame matrix
-            # calculate the eigenvalues and eigenvectors
-            omega_adj, p_adj = newtonSolver(self.matrices, self.degree, self.D, target, nev=1, i=0, tol=1e-2, maxiter=70, problem_type='adjoint', print_results= False)
-            print("- omega_adj:", omega_adj)
+            omega_adj = conjugate(omega_dir) # conjugate eigenvalue
         except IndexError:
             print("--IndexError: convergence of target failed in given range of iterations and tolerance")
         else:
@@ -339,7 +335,7 @@ class TestCase:
         # using formula of numeric/discrete shape derivative
         Mat_n = diff_A + self.omega_dir**2 * diff_C
         self.p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
-        self.derivative = vector_matrix_vector(self.p_adj_norm.vector, Mat_n, self.p_dir.vector)/-self.perturbation
+        self.derivative = vector_matrix_vector(self.p_adj_norm.vector, Mat_n, self.p_dir.vector)/self.perturbation
 
     # calculate the shape derivative using continuous formula from Dr. Ekrem Ekici dissertation
     def calculate_continuous_derivative(self):
@@ -369,7 +365,10 @@ class TestCase:
         print(f"---> \033[1mPolynomial Degree of FEM =\033[0m {self.degree}")
         print(f"---> \033[1mPerturbation Distance =\033[0m {self.perturbation} m")
         print(f"---> \033[1mTarget =\033[0m {self.frequ} Hz ")
-        print(f"---> \033[1mEigenfrequency =\033[0m {round(self.omega_dir.real/2/np.pi,4)} + {round(self.omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
+        print(f"---> \033[1mOmega =\033[0m {self.omega_dir.real} + {self.omega_dir.imag}j ({stability})")
+        print(f"---> \033[1m(Frequ) =\033[0m {self.omega_dir.real/-2/np.pi} Hz")
+        print(f"---> \033[1m(Growth Rate) =\033[0m {self.omega_dir.imag/2/np.pi} 1/s")
+        #print(f"---> \033[1mEigenfrequency =\033[0m {round(self.omega_dir.real/2/np.pi,4)} + {round(self.omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
         print(f"---> \033[1m{self.type.capitalize()} Shape Derivative =\033[0m {round(self.derivative.real/2/np.pi,8)} + {round(self.derivative.imag/2/np.pi,8)}j")
         print("Total Execution Time: ", datetime.datetime.now()-self.start_time)
 

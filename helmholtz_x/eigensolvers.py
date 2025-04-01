@@ -188,4 +188,4 @@ def newtonSolver(operators, degree, D, init, nev, i, tol, maxiter, problem_type,
         k += 1
         del E
 
-    return omega[k], p
+    return omega[k], p, p_adj

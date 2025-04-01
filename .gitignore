@@ -10,6 +10,7 @@ __pycache__/
 *.h5
 *.msh
 *.png
+*.code-workspace
 
 # Folders
 helmholtz_x.egg-info/

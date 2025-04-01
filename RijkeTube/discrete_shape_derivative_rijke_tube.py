@@ -10,7 +10,7 @@ Rijke_Tube = test_case.TestCase("/RijkeTube", 'discrete', False, path)
 Rijke_Tube.create_rijke_tube_mesh()
 Rijke_Tube.assemble_matrices()
 Rijke_Tube.solve_eigenvalue_problem()
-#Kornilov.write_input_functions()
+#Rijke_Tube.write_input_functions() # for testing
 Rijke_Tube.perturb_rijke_tube_mesh()
 Rijke_Tube.calculate_discrete_derivative()
 Rijke_Tube.log()

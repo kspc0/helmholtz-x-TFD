@@ -20,8 +20,8 @@ type=None # type of the test case does not matter because no logging is done
 discrete_shape_derivatives = []
 continuous_shape_derivatives = []
 eigenvalues = []
-tube_length_list = np.linspace(1,2, num=11)
-frequ_list = rparams.c_amb/2/tube_length_list # calculate expected frequencies for Dirichlet-Neumann boundary conditions
+tube_length_list = np.linspace(1,2, num=10)
+frequ_list = -rparams.c_amb/4/tube_length_list # calculate a target frequency for Dirichlet-Neumann boundary conditions for homogeneous tube
 
 for tube_length, frequ in zip(tube_length_list, frequ_list):
     Rijke_Tube = test_case.TestCase("/RijkeTube", type, False, parent_path)
