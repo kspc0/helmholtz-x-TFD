@@ -6,6 +6,7 @@ import datetime
 import gmsh
 import sys
 import numpy as np
+import logging
 # HelmholtzX utilities
 import helmholtz_x.distribute_params as dist_params
 from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh # to write mesh data as files
@@ -18,6 +19,7 @@ from helmholtz_x.eigenvectors import normalize_adjoint
 from helmholtz_x.petsc4py_utils import vector_matrix_vector, conjugate, conjugate_function
 from helmholtz_x.shape_derivatives import ShapeDerivativeFullBorder, ffd_displacement_vector_full_border # to calculate shape derivatives
 
+#logging.basicConfig(level=logging.DEBUG)  # Change to logging.WARNING to suppress
 
 # class for computing different test cases
 class TestCase:
@@ -35,7 +37,7 @@ class TestCase:
         elif self.name == "/RijkeTube":
             import RijkeTube.rparams as params
         else:
-            print("--ERROR: required parameters not found")
+            logging.error("required parameter file not found")
         self.par = params # set public variable
         # main parameters of geometry
         self.mesh_resolution = self.par.mesh_resolution
@@ -57,8 +59,9 @@ class TestCase:
 
     # build the mesh of the kornilov case
     def create_kornilov_mesh(self):
-        print("\n--- CREATING MESH ---")
+        logging.debug("\n--- CREATING MESH ---")
         gmsh.initialize() # start the gmsh session
+        gmsh.option.setNumber('General.Terminal', 0) # disable terminal output
         gmsh.model.add(self.name) # add the model name
         self.slit_height = 1e-3 # height of the slit
         self.combustion_chamber_height = 2.5e-3 # height of the combustion chamber
@@ -102,7 +105,7 @@ class TestCase:
         # save data in /Meshes directory
         gmsh.write("{}.msh".format(self.path+"/Meshes"+self.name)) # save as .msh file
         write_xdmf_mesh(self.path+"/Meshes"+self.name, dimension=2) # save as .xdmf file
-        print("\n--- LOADING MESH ---")
+        logging.debug("\n--- LOADING MESH ---")
         self.MeshObject = XDMFReader(self.path+"/Meshes"+self.name)
         self.mesh, self.subdomains, self.facet_tags = self.MeshObject.getAll() # mesh, domains and tags
         self.MeshObject.getInfo()
@@ -113,8 +116,9 @@ class TestCase:
 
     # build the mesh of the rijke tube case
     def create_rijke_tube_mesh(self):
-        print("\n--- CREATING MESH ---")
+        logging.debug("\n--- CREATING MESH ---")
         gmsh.initialize() # start the gmsh session
+        gmsh.option.setNumber('General.Terminal', 0) # disable terminal output
         gmsh.model.add(self.name) # add the model name
         # locate the points of the 2D geometry: [m]
         p1 = gmsh.model.geo.addPoint(0, 0, 0, self.mesh_resolution)  
@@ -146,7 +150,7 @@ class TestCase:
         # save data in /Meshes directory
         gmsh.write("{}.msh".format(self.path+"/Meshes"+self.name)) # save as .msh file
         write_xdmf_mesh(self.path+"/Meshes"+self.name, dimension=2) # save as .xdmf file
-        print("\n--- LOADING MESH ---")
+        logging.debug("\n--- LOADING MESH ---")
         self.MeshObject = XDMFReader(self.path+"/Meshes"+self.name)
         self.mesh, self.subdomains, self.facet_tags = self.MeshObject.getAll() # mesh, domains and tags
         self.MeshObject.getInfo()
@@ -157,14 +161,14 @@ class TestCase:
 
     # assemble the passive matrices and the flame matrix
     def assemble_matrices(self):
-        print("\n--- ASSEMBLING PASSIVE MATRICES ---")
+        logging.debug("\n--- ASSEMBLING PASSIVE MATRICES ---")
         # distribute temperature gradient as function on the geometry
         T = dist_params.step_function(self.mesh, self.par.x_f, self.par.T_in, self.T_out)
         # calculate the sound speed function from temperature
         self.c = sound_speed(T)
         # calculate the passive acoustic matrices
         self.matrices = AcousticMatrices(self.mesh, self.facet_tags, self.boundary_conditions, T , self.degree) # very large, sparse matrices
-        print("\n--- ASSEMBLING FLAME MATRIX ---")
+        logging.debug("\n--- ASSEMBLING FLAME MATRIX ---")
         if self.name == "/KornilovCase":
             # using statespace model to define the flame transfer function
             FTF = stateSpace(self.par.S1, self.par.s2, self.par.s3, self.par.s4)
@@ -186,23 +190,23 @@ class TestCase:
 
     # solve the eigenvalue problem for the given target frequency
     def solve_eigenvalue_problem(self):
-        print("\n--- STARTING NEWTON METHOD ---")
+        logging.info("\n--- COMPUTING EIGENSOLUTION ---") 
         # unit of target: ([Hz])*2*pi = [rad/s] 
         target = (self.frequ)*2*np.pi
-        print(f"---> \033[1mTarget\033[0m: {target.real:.2f}  {target.imag:.2f}j")
+        logging.info(f"---> \033[1mTarget\033[0m: {target.real:.2f}  {target.imag:.2f}j")
         try:
             # direct problem
-            print("\n- DIRECT PROBLEM -")
+            logging.debug("\n- DIRECT PROBLEM -")
             self.D.assemble_submatrices('direct') # assemble direct flame matrix
             # calculate the eigenvalues and eigenvectors
             omega_dir, p_dir, p_adj = newtonSolver(self.matrices, self.degree, self.D, target, nev=1, i=0, tol=1e-2, maxiter=70, problem_type='direct', print_results= False)
-            print("- omega_dir:", omega_dir)
-            omega_adj = conjugate(omega_dir) # conjugate eigenvalue
+            #print("- omega_dir:", omega_dir)
+            omega_adj = np.conj(omega_dir) # conjugate eigenvalue
         except IndexError:
-            print("--IndexError: convergence of target failed in given range of iterations and tolerance")
+            logging.error("IndexError: convergence of target failed in given range of iterations and tolerance")
         else:
-            print("-> Iterations done - target converged successfully")
-        print("\n--- SAVING EIGENSOLUTION ---")
+            logging.debug("-> Iterations done - target converged successfully")
+        logging.debug("\n--- SAVING EIGENSOLUTION ---")
         # save solutions in a dictionary with labels and values
         omega_dict = {'direct':omega_dir, 'adjoint': omega_adj}
         dict_writer(self.path+"/Results"+"/eigenvalues", omega_dict) # save as .txt
@@ -217,7 +221,7 @@ class TestCase:
 
     # slightly perturb the kornilov mesh to get perturbed matrices
     def perturb_kornilov_mesh(self):
-        print("\n--- PERTURBING THE MESH ---")
+        logging.debug("\n--- PERTURBING THE MESH ---")
         # copy the original node coordinates in order to prevent overwriting
         node_coords = np.array(self.original_node_coords, dtype=np.float64)
         # for discrete shape derivatives the mesh needs to be perturbed
@@ -250,12 +254,12 @@ class TestCase:
         # save perturbed mesh data in /Meshes directory
         gmsh.write("{}.msh".format(self.path+"/Meshes"+self.name+"_perturbed")) # save as .msh file
         write_xdmf_mesh(self.path+"/Meshes"+self.name+"_perturbed",dimension=2) # save as .xdmf file
-        print("\n--- RELOADING MESH ---")
+        logging.debug("\n--- RELOADING MESH ---")
         # reload to the perturbed mesh
         MeshObject_perturbed = XDMFReader(self.path+"/Meshes"+self.name+"_perturbed")
         self.perturbed_mesh, perturbed_subdomains, self.perturbed_facet_tags = MeshObject_perturbed.getAll() # mesh, domains and tags
         MeshObject_perturbed.getInfo()
-        print("\n--- REASSEMBLING PASSIVE MATRICES ---")
+        logging.debug("\n--- REASSEMBLING PASSIVE MATRICES ---")
         # recalculate the acoustic matrices for the perturbed mesh
         # define temperature gradient function in geometry
         T_pert = dist_params.step_function(self.perturbed_mesh, self.par.x_f, self.par.T_in, self.T_out)
@@ -264,7 +268,7 @@ class TestCase:
 
     # slightly perturb the rijketube mesh to get perturbed matrices
     def perturb_rijke_tube_mesh(self):
-        print("\n--- PERTURBING THE MESH ---")
+        logging.debug("\n--- PERTURBING THE MESH ---")
         # copy the original node coordinates in order to prevent overwriting
         node_coords = np.array(self.original_node_coords, dtype=np.float64)
         # for discrete shape derivatives the mesh needs to be perturbed
@@ -290,40 +294,67 @@ class TestCase:
         # save perturbed mesh data in /Meshes directory
         gmsh.write("{}.msh".format(self.path+"/Meshes"+self.name+"_perturbed")) # save as .msh file
         write_xdmf_mesh(self.path+"/Meshes"+self.name+"_perturbed",dimension=2) # save as .xdmf file
-        print("\n--- RELOADING MESH ---")
+        logging.debug("\n--- RELOADING MESH ---")
         # reload to the perturbed mesh
         MeshObject_perturbed = XDMFReader(self.path+"/Meshes"+self.name+"_perturbed")
         self.perturbed_mesh, perturbed_subdomains, self.perturbed_facet_tags = MeshObject_perturbed.getAll() # mesh, domains and tags
         MeshObject_perturbed.getInfo()
-        print("\n--- REASSEMBLING PASSIVE MATRICES ---")
+        logging.debug("\n--- REASSEMBLING PASSIVE MATRICES ---")
         # recalculate the acoustic matrices for the perturbed mesh
         # define temperature gradient function in geometry
         T_pert = dist_params.step_function(self.perturbed_mesh, self.par.x_f, self.par.T_in, self.T_out)
         # calculate the passive acoustic matrices
         self.perturbed_matrices = AcousticMatrices(self.perturbed_mesh, self.perturbed_facet_tags, self.boundary_conditions, T_pert , self.degree) # very large, sparse matrices
 
-    # calculate the shape derivative using discrete formula derived by Dr. Gregoire Varillon
+    # calculate the shape derivative using discrete formula
     def calculate_discrete_derivative(self):
-        print("\n--- CALCULATING DISCRETE SHAPE DERIVATIVES ---")
-        print("- calculate difference perturbed matrices")
+        logging.info("\n--- COMPUTING DISCRETE SHAPE DERIVATIVES ---")
+        logging.debug("- calculate difference perturbed matrices")
         diff_A = self.perturbed_matrices.A - self.matrices.A
         diff_C = self.perturbed_matrices.C - self.matrices.C
         # using formula of numeric/discrete shape derivative
-        print("- assembling numerator matrix")
+        logging.debug("- assembling numerator matrix")
         Mat_n = diff_A + self.omega_dir**2 * diff_C
         # multiply numerator matrix with direct and adjoint conjugate eigenvector
         # vector_matrix_vector automatically conjugates transposes p_adj
         numerator = vector_matrix_vector(self.p_adj.vector, Mat_n, self.p_dir.vector)
         # assemble flame matrix
         self.D.assemble_submatrices('direct')
-        print("- assembling denominator matrix")
+        logging.debug("- assembling denominator matrix")
         Mat_d = -2*(self.omega_dir)*self.matrices.C + self.D.get_derivative(self.omega_dir)
         # multiply denominator matrix with direct and adjoint conjugate eigenvector
         # vector_matrix_vector automatically conjugates transposes p_adj
         denominator = vector_matrix_vector(self.p_adj.vector, Mat_d, self.p_dir.vector)
-        print("- total shape derivative...")
-        print("- numerator:", numerator)
-        print("- denominator:", denominator)
+        logging.debug("- total shape derivative...")
+        logging.debug("- numerator: %s", numerator)
+        logging.debug("- denominator: %s", denominator)
+        # calculate quotient of complex number
+        self.derivative = numerator/denominator
+        # normalize with the perturbation
+        self.derivative = self.derivative / self.perturbation
+    
+    # calculate the shape derivative using discrete formula
+    def calculate_discrete_derivative_conj(self):
+        logging.debug("\n--- CALCULATING DISCRETE SHAPE DERIVATIVES ---")
+        logging.debug("- calculate difference perturbed matrices")
+        diff_A = self.perturbed_matrices.A - self.matrices.A
+        diff_C = self.perturbed_matrices.C - self.matrices.C
+        # using formula of numeric/discrete shape derivative
+        logging.debug("- assembling numerator matrix")
+        Mat_n = diff_A + self.omega_adj**2 * diff_C
+        # multiply numerator matrix with direct and adjoint conjugate eigenvector
+        # vector_matrix_vector automatically conjugates transposes p_adj
+        numerator = vector_matrix_vector(conjugate(self.p_adj.vector), Mat_n, conjugate(self.p_dir.vector))
+        # assemble flame matrix
+        self.D.assemble_submatrices('direct')
+        logging.debug("- assembling denominator matrix")
+        Mat_d = -2*(self.omega_adj)*self.matrices.C + self.D.get_derivative(self.omega_adj)
+        # multiply denominator matrix with direct and adjoint conjugate eigenvector
+        # vector_matrix_vector automatically conjugates transposes p_adj
+        denominator = vector_matrix_vector(conjugate(self.p_adj.vector), Mat_d, conjugate(self.p_dir.vector))
+        logging.debug("- total shape derivative...")
+        logging.debug("- numerator:", numerator)
+        logging.debug("- denominator:", denominator)
         # calculate quotient of complex number
         self.derivative = numerator/denominator
         # normalize with the perturbation
@@ -335,11 +366,20 @@ class TestCase:
         # using formula of numeric/discrete shape derivative
         Mat_n = diff_A + self.omega_dir**2 * diff_C
         self.p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
-        self.derivative = vector_matrix_vector(self.p_adj_norm.vector, Mat_n, self.p_dir.vector)/self.perturbation
+        self.derivative = vector_matrix_vector(self.p_adj_norm.vector, Mat_n, self.p_dir.vector) / self.perturbation
 
-    # calculate the shape derivative using continuous formula from Dr. Ekrem Ekici dissertation
+    def calculate_discrete_derivative_alternative_conj(self):
+        diff_A = self.perturbed_matrices.A - self.matrices.A
+        diff_C = self.perturbed_matrices.C - self.matrices.C
+        # using formula of numeric/discrete shape derivative
+        Mat_n = diff_A + self.omega_adj**2 * diff_C
+        self.p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
+        #self.p_adj_norm = conjugate_function(self.p_adj_norm)
+        self.derivative = vector_matrix_vector(conjugate(self.p_adj_norm.vector), Mat_n, conjugate(self.p_dir.vector)) / self.perturbation
+
+    # calculate the shape derivative using continuous formula
     def calculate_continuous_derivative(self):
-        print("\n--- CALCULATING CONTINUOUS SHAPE DERIVATIVES ---")
+        logging.info("\n--- COMPUTING CONTINUOUS SHAPE DERIVATIVES ---")
         physical_facet_tags = {1: 'inlet', 2: 'outlet', 5:'upper plenum'}
         if self.name == "/KornilovCase":
             selected_facet_tag = 5 # tag of the wall to be displaced
@@ -348,32 +388,32 @@ class TestCase:
             selected_facet_tag = 2
             norm_vector = [1,0]
         selected_boundary_condition = self.boundary_conditions[selected_facet_tag]
-        print("- boundary:", selected_boundary_condition)
+        logging.debug("- boundary: %s", selected_boundary_condition)
         # calculate the shape derivatives for the border
-        print("- calculating shape derivative")
         self.derivative = ShapeDerivativeFullBorder(self.MeshObject, selected_facet_tag, selected_boundary_condition, norm_vector, self.omega_dir, self.p_dir, self.p_adj, self.c, self.matrices, self.D)
 
     # terminal log of most important parameters and results of the calculation
     def log(self):
-        print("\n")
+        #logging.info("\n")
         if self.omega_dir.imag > 0: 
             stability = 'instable'
         else:
             stability = 'stable'
-        print(f"---> \033[1mMesh Resolution =\033[0m {self.mesh_resolution}")
-        print(f"---> \033[1mDimensions =\033[0m {self.length}m, {self.height} m")
-        print(f"---> \033[1mPolynomial Degree of FEM =\033[0m {self.degree}")
-        print(f"---> \033[1mPerturbation Distance =\033[0m {self.perturbation} m")
-        print(f"---> \033[1mTarget =\033[0m {self.frequ} Hz ")
-        print(f"---> \033[1mOmega =\033[0m {self.omega_dir.real} + {self.omega_dir.imag}j ({stability})")
-        print(f"---> \033[1m(Frequ) =\033[0m {self.omega_dir.real/-2/np.pi} Hz")
-        print(f"---> \033[1m(Growth Rate) =\033[0m {self.omega_dir.imag/2/np.pi} 1/s")
-        #print(f"---> \033[1mEigenfrequency =\033[0m {round(self.omega_dir.real/2/np.pi,4)} + {round(self.omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
-        print(f"---> \033[1m{self.type.capitalize()} Shape Derivative =\033[0m {round(self.derivative.real/2/np.pi,8)} + {round(self.derivative.imag/2/np.pi,8)}j")
+        logging.info(f"---> \033[1mMesh Resolution =\033[0m {self.mesh_resolution}")
+        logging.info(f"---> \033[1mDimensions =\033[0m {self.length}m, {self.height} m")
+        logging.info(f"---> \033[1mPolynomial Degree of FEM =\033[0m {self.degree}")
+        logging.info(f"---> \033[1mPerturbation Distance =\033[0m {self.perturbation} m")
+        logging.info(f"---> \033[1mTarget =\033[0m {self.frequ} Hz ")
+        logging.info(f"---> \033[1mOmega =\033[0m {self.omega_dir.real} + {self.omega_dir.imag}j ({stability})")
+        logging.info(f"---> \033[1m(Frequ) =\033[0m {self.omega_dir.real/-2/np.pi} Hz")
+        logging.info(f"---> \033[1m(Growth Rate) =\033[0m {self.omega_dir.imag/2/np.pi} 1/s")
+        #logging.info(f"---> \033[1mEigenfrequency =\033[0m {round(self.omega_dir.real/2/np.pi,4)} + {round(self.omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
+        logging.info(f"---> \033[1m{self.type.capitalize()} Shape Derivative =\033[0m {round(self.derivative.real/2/np.pi,8)} + {round(self.derivative.imag/2/np.pi,8)}j")
         print("Total Execution Time: ", datetime.datetime.now()-self.start_time)
 
     # write the input functions for the paraview visualization
     def write_input_functions(self):
+        logging.info("\n--- WRITING INPUT FUNCTIONS ---")
         # assemble the functions again
         h_func = dist_params.gauss_function(self.mesh, self.par.x_f, self.par.a_f)
         w_func = dist_params.gauss_function(self.mesh, self.par.x_r, self.par.a_r)

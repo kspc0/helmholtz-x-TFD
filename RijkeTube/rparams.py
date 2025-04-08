@@ -9,7 +9,7 @@ height = 0.047 # [m] height of the tube
 
 # eigenvalue problem parameters
 degree = 2 # degree of FEM polynomials
-frequ = -100 # [Hz] where to expect first mode ! initial value is negative the frequency
+frequ = 100 # [Hz] where to expect first mode ! initial value is negative the frequency
 
 perturbation = 0.001 # [m] perturbation distance
 # set boundary conditions

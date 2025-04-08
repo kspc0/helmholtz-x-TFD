@@ -1,5 +1,6 @@
 import numpy as np
 from ufl import exp
+import logging
 
 # FTF as n-tau model
 class nTau:
@@ -24,13 +25,13 @@ class stateSpace:
         self.b = s2
         self.c = s3
         self.d = s4
-        print("- FTF initialized")
+        logging.debug("- FTF initialized")
         self.Id = np.eye(*S1.shape)
 
     def __call__(self, omega):
         k = 0
         omega = np.conj(omega) # why should omega be conjugated before used in FTF?
-        print("- FTF uses omega:", round(omega))
+        logging.debug("- FTF uses omega: %s", round(omega))
         # for k=0 this is standard state-space format
         # FTF = s3^transposed * (i \omega I - S1)^inverse * s2 + s4
         Mat = (- 1j) ** k * np.math.factorial(k) * \
@@ -38,7 +39,7 @@ class stateSpace:
         row = np.dot(self.c, Mat) # *s3
         H = np.dot(row, self.b) # *s2
         H += self.d # +s4 (1 dimensional)
-        print("- matrix state space: FTF = ", round(np.conj(H[0][0]),3))
+        logging.debug("- matrix state space: FTF = %s", round(np.conj(H[0][0]),3))
         return np.conj(H[0][0])
     
     # calculate the derivative of FTF

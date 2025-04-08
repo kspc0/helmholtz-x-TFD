@@ -6,6 +6,7 @@ from .solver_utils import info
 from slepc4py import SLEPc
 from mpi4py import MPI
 import numpy as np
+import logging
 
 # normalize eigenvector with L2 norm (used in Newton solver)
 def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right', matrices=None, print_eigs=True):
@@ -20,8 +21,10 @@ def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right',
     # check which type of eigenvalue problem there was PEP or EPS
     # obtain the eigenvector and eigenvalue from the matrix
     if isinstance(obj, SLEPc.EPS):
+        #print("--------------------- using EPS solver")
         eig = obj.getEigenvalue(i)
         omega = np.sqrt(eig)
+        #print("- eigenvalue: ", eig, "omega: ", omega)
         if which == 'right':
             obj.getEigenvector(i, vr, vi)
         elif which == 'left':
@@ -46,7 +49,7 @@ def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right',
     meas = np.sqrt(mesh.comm.allreduce(assemble_scalar(form(p*p*dx)), op=MPI.SUM)) # this does not affect shape derivative because is cancelled later
     # only print normalization measure for right eigenvector
     if which == 'right':
-        print("- measure of normalization for eigenvector: m = ", round(meas.real,3))
+        logging.debug("- measure of normalization for eigenvector: m = %s", round(meas.real,3))
 
     temp = vr.array
     # normalize eigenvector by the measure
@@ -65,13 +68,13 @@ def normalize_eigenvector(mesh, obj, i, absolute=False, degree=1, which='right',
 
     # print the eigenvalue and eigenfrequency
     if MPI.COMM_WORLD.rank == 0 and print_eigs:
-        print(f"Eigenvalue = {omega:.3f} | \033[1mEigenfrequency= {omega/(2*np.pi):.3f}\033[0m")
+        logging.info(f"Eigenvalue = {omega:.3f} | \033[1mEigenfrequency= {omega/(2*np.pi):.3f}\033[0m")
     return omega, p_normalized
 
 
 # normalizes adjoint eigenvector for shape optimization with B + 2 \omega C - D'(\omega)
 def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
-    info("- Normalizing the adjoint eigenvector to calculate shape derivatives..")
+    logging.debug("- Normalizing the adjoint eigenvector to calculate shape derivatives..")
 
     B = matrices.B
 
@@ -82,27 +85,27 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
     if not B and not D:
         # + 2 \omega C
         dL_domega = matrices.C * (2 * omega_dir)
-        print("- using normalization: 2 omega C")
+        logging.debug("- using normalization: 2 omega C")
     elif B and not D:
         # B + 2 \omega C
         dL_domega = (B +
                      matrices.C * (2 * omega_dir))
-        print("- using normalization: B + 2 omega C")
+        logging.debug("- using normalization: B + 2 omega C")
     elif D and not B:
         # 2 \omega C - D'(\omega)
         dL_domega = (matrices.C * (2 * omega_dir) -
                     D.get_derivative(omega_dir))
-        print("- using normalization: 2 omega C - D'")
+        logging.debug("- using normalization: 2 omega C - D'")
     else:
         # B + 2 \omega C - D'(\omega)
         dL_domega = (B +
                      matrices.C * (2 * omega_dir) -
                      D.get_derivative(omega_dir))
-        print("- using normalization: B + 2 omega C - D'")
+        logging.debug("- using normalization: B + 2 omega C - D'")
 
     # measure of the adjoint eigenfunction
     meas = vector_matrix_vector(p_adj_vec, dL_domega, p_dir_vec)
-    print("- measure of the shape derivative normalization: m =", meas)
+    logging.debug("- measure of the shape derivative normalization: m = %s", meas)
     p_adj_vec = multiply(p_adj_vec, 1 / meas) # normalize by division of measure
 
     # create new vector to store the normalized adjoint eigenvector
@@ -114,6 +117,6 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
     # check normalization
     integral = vector_matrix_vector(p_adj1.vector, dL_domega, p_dir_vec)
     if MPI.COMM_WORLD.rank == 0:
-        print("! Normalization Check: ", integral)
+        logging.debug("! Normalization Check: %s", integral)
 
     return p_adj1

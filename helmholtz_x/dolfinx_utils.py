@@ -20,6 +20,8 @@ def cart2cyl(x, y, z):
     return rho, phi, zeta 
 
 import numba
+import logging
+logging.getLogger('numba').setLevel(logging.WARNING) # suppress numba warnings
 @numba.njit
 def unroll_dofmap(dofs, bs):
     dofs_unrolled = np.zeros(bs*len(dofs), dtype=np.int32)

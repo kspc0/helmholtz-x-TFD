@@ -6,6 +6,7 @@ from ufl import Measure, TestFunction, TrialFunction, grad, inner
 from petsc4py import PETSc
 from mpi4py import MPI
 import numpy as np
+import logging
 
 
 # find the acoustic matrices A, B and C for discrete helmholtz equation
@@ -42,24 +43,24 @@ class AcousticMatrices:
         self._C = None
 
         if MPI.COMM_WORLD.rank == 0:
-            print("- Degree of basis functions: ", self.degree)
+            logging.debug("- Degree of basis functions: %d", self.degree)
 
         # usually temperature is the case, as we create the matrices from distribution of T
         if self.parameter.name == "temperature":
             self.c = sound_speed_variable_gamma(self.mesh, parameter, degree=degree)
             self.T = self.parameter
             self.gamma = gamma_function(self.T)
-            info("/\ Temperature function is used for passive flame matrices.")
+            logging.debug("- Temperature function is used for passive flame matrices.")
         else:
             self.c = parameter
             self.gamma = self.c.copy()
             self.gamma.x.array[:] = 1.4
-            info("\/ Speed of sound function is used for passive flame matrices.")
+            logging.debug("- Speed of sound function is used for passive flame matrices.")
 
         # Boundary Conditions:
         for boundary in boundary_conditions:
             if 'Neumann' in boundary_conditions[boundary]:
-                info("- Neumann boundaries on boundary "+str(boundary))
+                logging.debug("- Neumann boundaries on boundary "+str(boundary))
                 
             if 'Dirichlet' in boundary_conditions[boundary]:
                 u_bc = Function(self.V)
@@ -67,14 +68,14 @@ class AcousticMatrices:
                 dofs = locate_dofs_topological(self.V, self.fdim, facets)
                 bc = dirichletbc(u_bc, dofs)
                 self.bcs_Dirichlet.append(bc)
-                info("- Dirichlet boundary on boundary "+str(boundary))
+                logging.debug("- Dirichlet boundary on boundary "+str(boundary))
 
             if 'Robin' in boundary_conditions[boundary]:
                 R = boundary_conditions[boundary]['Robin']
                 Z = (1+R)/(1-R)
                 integrals_Impedance = 1j * self.c / Z * inner(self.phi_i, self.phi_j) * self.ds(boundary)
                 self.integrals_R.append(integrals_Impedance)
-                info("- Robin boundary on boundary "+str(boundary))
+                logging.debug("- Robin boundary on boundary "+str(boundary))
 
             if 'ChokedInlet' in boundary_conditions[boundary]:
                 A_inlet = MPI.COMM_WORLD.allreduce(assemble_scalar(form(self.AreaConstant * self.ds(boundary))), op=MPI.SUM)
@@ -86,7 +87,7 @@ class AcousticMatrices:
                 Z = (1+R)/(1-R)
                 integral_C_i = 1j * self.c / Z * inner(self.phi_i, self.phi_j) * self.ds(boundary)
                 self.integrals_R.append(integral_C_i)
-                info("- Choked inlet boundary on boundary "+str(boundary))
+                logging.debug("- Choked inlet boundary on boundary "+str(boundary))
 
             if 'ChokedOutlet' in boundary_conditions[boundary]:
                 A_outlet = MPI.COMM_WORLD.allreduce(assemble_scalar(form(self.AreaConstant * self.ds(boundary))), op=MPI.SUM)
@@ -98,15 +99,15 @@ class AcousticMatrices:
                 Z = (1+R)/(1-R)
                 integral_C_o = 1j * self.c / Z * inner(self.phi_i, self.phi_j) * self.ds(boundary)
                 self.integrals_R.append(integral_C_o)
-                info("- Choked outlet boundary on boundary "+str(boundary))
+                logging.debug("- Choked outlet boundary on boundary "+str(boundary))
 
-        info("- Passive matrices are assembling..")
+        logging.debug("- Passive matrices are assembling..")
 
         # Assemble the matrix A - stiffness matrix
         self.a_form = form(-self.c**2* inner(grad(self.phi_i), grad(self.phi_j))*self.dx) # symbolic form
         A = assemble_matrix(self.a_form, bcs=self.bcs_Dirichlet) # actual matrix assembly NxN
         A.assemble() # finalizing assembly
-        info("- Matrix A is assembled.")
+        logging.debug("- Matrix A is assembled.")
         self._A = A
 
         # assemble matrix B - boundary matrix
@@ -118,7 +119,7 @@ class AcousticMatrices:
             B_adj = B.copy()
             B_adj.transpose()
             B_adj.conjugate()
-            info("- Matrix B is assembled.")
+            logging.debug("- Matrix B is assembled.")
             self._B = B
             self._B_adj = B_adj
 
@@ -126,7 +127,7 @@ class AcousticMatrices:
         self.c_form = form(inner(self.phi_i , self.phi_j) * self.dx)
         C = assemble_matrix(self.c_form, self.bcs_Dirichlet)
         C.assemble()
-        info("- Matrix C is assembled.")
+        logging.debug("- Matrix C is assembled.")
         self._C = C
 
     @property

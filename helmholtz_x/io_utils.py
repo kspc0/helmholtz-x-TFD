@@ -6,6 +6,7 @@ import meshio
 import os
 import json
 import ast
+import logging
 
 # save the eigenvalue solutions omega _dir and omega_adj in a textfile
 def dict_writer(filename, dictionary, extension = ".txt"):
@@ -19,7 +20,7 @@ def dict_writer(filename, dictionary, extension = ".txt"):
     with open(filename+extension, 'w') as file:
         file.write(json.dumps(str(dictionary))) 
     if MPI.COMM_WORLD.rank==0:
-        print(filename+extension, " is saved.")
+        logging.debug("%s is saved.", filename+extension)
 
 # read the eigenvalue solutions omega _dir and omega_adj from a textfile
 def dict_loader(filename, extension = ".txt"):
@@ -36,7 +37,7 @@ def dict_loader(filename, extension = ".txt"):
         data = json.load(f)
     data = ast.literal_eval(data)
     if MPI.COMM_WORLD.rank==0:
-        print(filename+extension, " is loaded.")
+        logging.debug(filename+extension, " is loaded.")
     return data
 
 # save function spaces as .xdmf files, which can be examined with Paraview
@@ -91,9 +92,9 @@ def create_mesh(mesh, cell_type, prune_z):
     out_mesh = meshio.Mesh(points=points, cells={cell_type: cells}, cell_data={"name_to_read":[cell_data]})
     
     if cell_type=="tetra":
-        print("Number of 3D cells:  {:,}".format(len(cells)))
+        logging.debug("Number of 3D cells:  {:,}".format(len(cells)))
     elif cell_type=="triangle":
-        print("Number of 2D cells (facets):  {:,}".format(len(cells)))
+        logging.debug("Number of 2D cells (facets):  {:,}".format(len(cells)))
 
     return out_mesh
 
@@ -136,7 +137,7 @@ def write_xdmf_mesh(name, dimension, write_edge=False):
         meshio.write(xdmf_name, volume_mesh)
         meshio.write(xdmf_tags_name, tag_mesh)
 
-        print(str(dimension)+"D XDMF mesh is generated.")
+        logging.debug(str(dimension)+"D XDMF mesh is generated.")
 
 def load_xdmf_mesh(name):
     """Loads xdmf mesh into python script
@@ -158,7 +159,7 @@ def load_xdmf_mesh(name):
         facet_tags = xdmf.read_meshtags(mesh, name="Grid")
     
     if MPI.COMM_WORLD.rank == 0:
-        print("XDMF Mesh is loaded.")
+        logging.debug("XDMF Mesh is loaded.")
     return mesh, cell_tags, facet_tags
 
 class XDMFReader:
@@ -177,18 +178,18 @@ class XDMFReader:
         with XDMFFile(MPI.COMM_WORLD, mesh_loader_name, "r") as xdmf:
             self._mesh = xdmf.read_mesh(name="Grid")
             self._cell_tags = xdmf.read_meshtags(self.mesh, name="Grid")
-        info("XDMF Mesh - Cell data loaded.")
+        logging.debug("XDMF Mesh - Cell data loaded.")
         
         self._mesh.topology.create_connectivity(self.mesh.topology.dim, self.mesh.topology.dim-1)
         with XDMFFile(MPI.COMM_WORLD, tag_loader_name, "r") as xdmf:
             self._facet_tags = xdmf.read_meshtags(self.mesh, name="Grid")    
-        info("XDMF Mesh - Facet data loaded.")
+        logging.debug("XDMF Mesh - Facet data loaded.")
 
         if os.path.exists(edgetag_loader_name):
             self.mesh.topology.create_connectivity(self.mesh.topology.dim-1, self.mesh.topology.dim-2)
             with XDMFFile(MPI.COMM_WORLD, edgetag_loader_name, "r") as xdmf:
                 self._edge_tags = xdmf.read_meshtags(self.mesh, name="Grid")
-            info("XDMF Mesh - Edge data loaded.")
+            logging.debug("XDMF Mesh - Edge data loaded.")
     
     @property
     def mesh(self):
@@ -214,6 +215,6 @@ class XDMFReader:
         num_cells = t_imap.size_local + t_imap.num_ghosts
         total_num_cells = MPI.COMM_WORLD.allreduce(num_cells, op=MPI.SUM)
         if MPI.COMM_WORLD.Get_rank()==0:
-            print("Number of cells:  {:,}".format(total_num_cells))
-            print("Number of cores: ", MPI.COMM_WORLD.Get_size())
+            logging.debug("Number of cells:  {:,}".format(total_num_cells))
+            logging.debug("Number of cores: %d", MPI.COMM_WORLD.Get_size())
         return total_num_cells

@@ -1,7 +1,11 @@
 import os
 import test_case
 import gmsh
+import logging
 
+# Global logger setup
+logger = logging.getLogger()  # Default logger
+logger.setLevel(logging.INFO)  # Set the logging level
 # set variables to load and save files
 path = os.path.dirname(os.path.abspath(__file__))
 
@@ -12,6 +16,6 @@ Rijke_Tube.assemble_matrices()
 Rijke_Tube.solve_eigenvalue_problem()
 #Rijke_Tube.write_input_functions() # for testing
 Rijke_Tube.perturb_rijke_tube_mesh()
-Rijke_Tube.calculate_discrete_derivative()
+Rijke_Tube.calculate_discrete_derivative_alternative()
 Rijke_Tube.log()
 gmsh.finalize() # close the gmsh session

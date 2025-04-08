@@ -8,6 +8,7 @@ from .solver_utils import info
 from petsc4py import PETSc
 from mpi4py import MPI
 import numpy as np
+import logging
 
 # assembly of the flame matrix D(omega)
 class FlameMatrix:
@@ -102,22 +103,22 @@ class FlameMatrix:
 
         if problem_type == 'direct':
             self._D = self._D_ij * self.FTF(omega) 
-            info("- Direct matrix D is assembling...")
+            logging.debug("- Direct matrix D is assembling...")
        
         elif problem_type == 'adjoint':
             self._D_adj = self._D_ij_adj * np.conj(self.FTF(np.conj(omega)))
-            info("- Adjoint matrix D is assembling...")
+            logging.debug("- Adjoint matrix D is assembling...")
         else:
             ValueError("The problem type should be specified as 'direct' or 'adjoint'.")
         
-        info("- Matrix D is assembled.")
+        logging.debug("- Matrix D is assembled.")
     
     # assemble the derivative of the matrix
     def get_derivative(self, omega):
-        info("- Assembling derivative of matrix D..")
-        print("- FTF derivative:", self.FTF.derivative(omega))
+        logging.debug("- Assembling derivative of matrix D..")
+        logging.debug("- FTF derivative: %s", self.FTF.derivative(omega))
         dD_domega = self.FTF.derivative(omega) * self._D_ij
-        info("- Derivative of matrix D is assembled.")
+        logging.debug("- Derivative of matrix D is assembled.")
         return dD_domega
 
 
@@ -149,7 +150,7 @@ class DistributedFlameMatrix(FlameMatrix):
             right_vector = distribute_vector_as_chunks(right_vector)
             left_vector = broadcast_vector(left_vector)
         else:
-            ValueError("The problem type should be specified as 'direct' or 'adjoint'.")
+            logging.error("The problem type should be specified as 'direct' or 'adjoint'.")
 
         return left_vector, right_vector
 
@@ -163,7 +164,7 @@ class DistributedFlameMatrix(FlameMatrix):
         left, right = self._assemble_vectors(problem_type=problem_type)
         row,col,val = self.get_sparse_matrix_data(left, right, problem_type=problem_type)
 
-        info("- Generating matrix D..")
+        logging.debug("- Generating matrix D..")
 
         ONNZ = len(col)*np.ones(self.local_size,dtype=np.int32)
         mat.setPreallocationNNZ([ONNZ, ONNZ])
@@ -173,7 +174,7 @@ class DistributedFlameMatrix(FlameMatrix):
         mat.assemblyBegin()
         mat.assemblyEnd()
 
-        info ("- Distributed Submatrix D is Assembled.")
+        logging.debug("- Distributed Submatrix D is Assembled.")
 
         # choose if left of right submatrix is assembled
         if problem_type == 'direct':
@@ -181,4 +182,4 @@ class DistributedFlameMatrix(FlameMatrix):
         elif problem_type == 'adjoint':
             self._D_ij_adj = mat
         else:
-            ValueError("The problem type should be specified as 'direct' or 'adjoint'.")
+            logging.error("The problem type should be specified as 'direct' or 'adjoint'.")

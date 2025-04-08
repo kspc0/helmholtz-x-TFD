@@ -5,47 +5,16 @@ from slepc4py import SLEPc
 from mpi4py import MPI
 import numpy as np
 from petsc4py import PETSc
+import logging
 import scipy
 
-def results(E):
-    if MPI.COMM_WORLD.Get_rank()==0:
-        print()
-        print("******************************")
-        print("*** SLEPc Solution Results ***")
-        print("******************************")
-        print()
-
-        its = E.getIterationNumber()
-        print("Number of iterations of the method: %d" % its)
-
-        eps_type = E.getType()
-        print("Solution method: %s" % eps_type)
-
-        nev, ncv, mpd = E.getDimensions()
-        print("Number of requested eigenvalues: %d" % nev)
-
-        tol, maxit = E.getTolerances()
-        print("Stopping condition: tol=%.4g, maxit=%d" % (tol, maxit))
-
-        nconv = E.getConverged()
-        print("Number of converged eigenpairs %d" % nconv)
-
-        A = E.getOperators()[0]
-        vr, vi = A.createVecs()
-
-        if nconv > 0:
-            print()
-        for i in range(nconv):
-            k = E.getEigenpair(i, vr, vi)
-            print("%15f, %15f" % (k.real, k.imag))
-        print()
 
 # EPS: eigenvalue problem solver 
 # for standard eigenvalue problem
 def eps_solver(A, C, target, nev, two_sided=False, print_results=False):
     """
     This function defines solved instance for
-    A + w^2 C = 0
+    A q = lambda C q
     """
     E = SLEPc.EPS().create(MPI.COMM_WORLD)
 
@@ -55,7 +24,7 @@ def eps_solver(A, C, target, nev, two_sided=False, print_results=False):
     # spectral transformation
     st = E.getST()
     st.setType('sinvert') # shiftinvert
-    eps_target = target
+    eps_target = target#**2 # square or not???
     E.setTarget(eps_target)
     # find eigenvalues closest to a given target
     E.setWhichEigenpairs(SLEPc.EPS.Which.TARGET_MAGNITUDE)  # MAGNITUDE, TARGET_REAL or TARGET_IMAGINARY
@@ -65,11 +34,9 @@ def eps_solver(A, C, target, nev, two_sided=False, print_results=False):
     E.setTolerances(1e-15)
     E.setFromOptions()
 
-    info("- EPS solver started.")
+    logging.debug("- EPS solver started.")
     E.solve()
-    info("- EPS solver converged. Eigenvalue computed.")
-    if print_results and MPI.COMM_WORLD.rank == 0:
-        results(E)
+    logging.debug("- EPS solver converged. Eigenvalue computed.")
 
     return E
 
@@ -95,11 +62,9 @@ def pep_solver(A, B, C, target, nev, print_results=False):
     Q.setTolerances(1e-15)
     Q.setFromOptions()
 
-    info("- PEP solver started.")
+    logging.debug("- PEP solver started.")
     Q.solve()
-    info("- PEP solver converged. Eigenvalue computed.")
-    if print_results and MPI.COMM_WORLD.rank == 0:
-        results(Q)
+    logging.debug("- PEP solver converged. Eigenvalue computed.")
 
     return Q
 
@@ -138,7 +103,7 @@ def newtonSolver(operators, degree, D, init, nev, i, tol, maxiter, problem_type,
 
     relaxation = 1.0
 
-    info("-> Newton solver started.")
+    logging.debug("-> Newton solver started.")
 
     while abs(domega) > tol:
         D.assemble_matrix(omega[k], problem_type)
@@ -150,18 +115,20 @@ def newtonSolver(operators, degree, D, init, nev, i, tol, maxiter, problem_type,
         # choose if boundary matrix is included or not
         if not B:
             L = A + omega[k] ** 2 * C - D_Mat
-            print("- no boundary matrix")
+            logging.debug("- no boundary matrix")
             dL_domega = 2 * omega[k] * C - D.get_derivative(omega[k])
         else:
             L = A + omega[k] * B + omega[k] ** 2 * C  - D_Mat
             dL_domega = B + (2 * omega[k] * C) - D.get_derivative(omega[k])
-            print("- boundary matrix included")
+            logging.debug("- boundary matrix included")
 
         # solve the eigenvalue problem L(\omega) * p = \lambda * C * p
         # usually we solve L(\omega) * p = \lambda*Id*p, but here we set matrix C, to give the convergence a headstart
         # mass matrix C defines the scale of the problem, which makes it easier to converge
+        # target is ZERO!!!
         E = eps_solver(L, - C, 0, nev, two_sided=True, print_results=print_results) # why never use pep solver?
         eig = E.getEigenvalue(i)
+        #print("-nvalue: ", eig)
         # normalize the eigenvectors
         # p is either direct or adjoint eigenvector, depending on which matrix D was assembled earlier
         omega_dir, p = normalize_eigenvector(operators.mesh, E, i, degree=degree, which='right', print_eigs=False)
@@ -183,7 +150,7 @@ def newtonSolver(operators, degree, D, init, nev, i, tol, maxiter, problem_type,
         omega[k + 1] = omega[k] + domega
         
         if MPI.COMM_WORLD.rank == 0:
-            print('iter = {:2d},  omega = {}  {}j,  |domega| = {:.2e}'.format(
+            logging.debug('iter = {:2d},  omega = {}  {}j,  |domega| = {:.2e}'.format(
                     k, s.format(omega[k + 1].real), s.format(omega[k + 1].imag), abs(domega)))
         k += 1
         del E
