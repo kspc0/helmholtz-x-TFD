@@ -5,7 +5,7 @@ import logging
 
 # Global logger setup
 logger = logging.getLogger()  # Default logger
-logger.setLevel(logging.DEBUG)  # Set the logging level
+logger.setLevel(logging.INFO)  # Set the logging level
 # set variables to load and save files
 path = os.path.dirname(os.path.abspath(__file__))
 
@@ -14,8 +14,10 @@ Kornilov = test_case.TestCase("/KornilovCase" ,'discrete', False, path)
 Kornilov.create_kornilov_mesh()
 Kornilov.assemble_matrices()
 Kornilov.solve_eigenvalue_problem()
+# optional for testing
+Kornilov.test_eigenvalue_solution()
 #Kornilov.write_input_functions()
 Kornilov.perturb_kornilov_mesh()
-Kornilov.calculate_discrete_derivative()
+Kornilov.calculate_discrete_derivative("linear") # so far only linear implemented
 Kornilov.log()
 gmsh.finalize() # close the gmsh session

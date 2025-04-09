@@ -17,7 +17,7 @@ Rijke_Tube.solve_eigenvalue_problem()
 # optional for testing
 Rijke_Tube.test_eigenvalue_solution()
 #Rijke_Tube.write_input_functions()
-Rijke_Tube.perturb_rijke_tube_mesh()
+Rijke_Tube.perturb_rijke_tube_mesh("linear") # linear or inside
 Rijke_Tube.calculate_discrete_derivative()
 Rijke_Tube.log()
 gmsh.finalize() # close the gmsh session

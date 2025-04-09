@@ -246,7 +246,7 @@ class TestCase:
         xdmf_writer(self.path+"/Results"+"/residual_adj", self.mesh, resi_adj)
 
     # slightly perturb the kornilov mesh to get perturbed matrices
-    def perturb_kornilov_mesh(self):
+    def perturb_kornilov_mesh(self, pert_method="linear"):
         logging.debug("\n--- PERTURBING THE MESH ---")
         # copy the original node coordinates in order to prevent overwriting
         node_coords = np.array(self.original_node_coords, dtype=np.float64)
@@ -293,21 +293,36 @@ class TestCase:
         self.perturbed_matrices = AcousticMatrices(self.perturbed_mesh, self.perturbed_facet_tags, self.boundary_conditions, T_pert , self.degree) # very large, sparse matrices
 
     # slightly perturb the rijketube mesh to get perturbed matrices
-    def perturb_rijke_tube_mesh(self):
+    def perturb_rijke_tube_mesh(self, pert_method="linear"):
         logging.debug("\n--- PERTURBING THE MESH ---")
         # copy the original node coordinates in order to prevent overwriting
         node_coords = np.array(self.original_node_coords, dtype=np.float64)
         # for discrete shape derivatives the mesh needs to be perturbed
         # assign x,y,z coordinates to separate arrays
         xcoords = node_coords[0::3] # get x-coordinates
-        # perturb the chosen mesh points slightly in x direction
-        for i, x in enumerate(xcoords):
-            if x > 0.3: # only perturb parts of mesh that lie behind the flame located at 0.25m
-                xcoords[i] += (x - 0.3)/(self.length - 0.3) * self.perturbation
+        ycoords = node_coords[1::3] # get y-coordinates
+        # choose which perturbation method is applied
+        if pert_method == "linear": # standard
+            logging.debug("- perturbation method: linear")
+            # perturb the chosen mesh points slightly in x direction
+            for i, x in enumerate(xcoords):
+                if x > 0.3: # only perturb parts of mesh that lie behind the flame located at 0.25m
+                    xcoords[i] += (x - 0.3)/(self.length - 0.3) * self.perturbation
+        elif pert_method == "inside": # perturbation only inside the mesh, not the border
+            logging.info("- perturbation method: only inside")
+            # perturb the chosen mesh randomly in x y directions
+            for i, x in enumerate(xcoords):
+                if x > 0.3 and x < 0.95: # only perturb parts of mesh that lie behind the flame located at 0.25m and before the end at 0.95m
+                    xcoords[i] += (x - 0.3)/(self.length - 0.3) * self.perturbation
+        elif pert_method == "random":
+            logging.warning("- perturbation method: random not implemented yet!")
+        elif pert_method == "border":
+            logging.warning("- perturbation method: border not implemented yet!")
         #xcoords += xcoords * perturbation #(case for perturbing the whole duct disregarding the flame)
         # update node x coordinates in mesh to the perturbed points
         perturbed_node_coordinates = node_coords
         perturbed_node_coordinates[0::3] = xcoords
+        perturbed_node_coordinates[1::3] = ycoords
         # update node positions
         for tag, new_coords in zip(self.original_node_tags, perturbed_node_coordinates.reshape(-1,3)):
             gmsh.model.mesh.setNode(tag, new_coords, [])
