@@ -7,6 +7,8 @@ import gmsh
 import sys
 import numpy as np
 import logging
+from petsc4py import PETSc
+from dolfinx.fem import Function, FunctionSpace, Expression, form
 # HelmholtzX utilities
 import helmholtz_x.distribute_params as dist_params
 from helmholtz_x.io_utils import XDMFReader, dict_writer, xdmf_writer, write_xdmf_mesh # to write mesh data as files
@@ -19,7 +21,7 @@ from helmholtz_x.eigenvectors import normalize_adjoint
 from helmholtz_x.petsc4py_utils import vector_matrix_vector, conjugate, conjugate_function
 from helmholtz_x.shape_derivatives import ShapeDerivativeFullBorder, ffd_displacement_vector_full_border # to calculate shape derivatives
 
-#logging.basicConfig(level=logging.DEBUG)  # Change to logging.WARNING to suppress
+
 
 # class for computing different test cases
 class TestCase:
@@ -218,6 +220,30 @@ class TestCase:
         self.omega_adj = omega_adj
         self.p_dir = p_dir
         self.p_adj = p_adj
+
+    def test_eigenvalue_solution(self):
+        logging.debug("\n--- TESTING EIGENSOLUTION ---")
+        MAT = (self.matrices.A + self.omega_dir**2 * self.matrices.C - self.D.get_derivative(self.omega_dir))
+        residual_dir = self.p_dir.vector.copy()
+        MAT.mult(self.p_dir.vector, residual_dir)
+        logging.debug("- residual of the direct eigenvalue problem computed")
+        # save residual vector as xdmf file
+        V = FunctionSpace(self.mesh, ("CG", self.degree))
+        resi_dir = Function(V)
+        resi_dir.vector.setArray(residual_dir)
+        resi_dir.x.scatter_forward()
+        xdmf_writer(self.path+"/Results"+"/residual_dir", self.mesh, resi_dir)
+        # compute the residual of adjoint eigenvalue problem
+        MAT_trans = MAT.transpose()
+        MAT_trans = conjugate(MAT_trans)
+        residual_adj = self.p_adj.vector.copy()
+        MAT_trans.mult(self.p_adj.vector, residual_adj)
+        logging.debug("- residual of the adjoint eigenvalue problem computed")
+        # save residual vector as xdmf file
+        resi_adj = Function(V)
+        resi_adj.vector.setArray(residual_dir)
+        resi_adj.x.scatter_forward()
+        xdmf_writer(self.path+"/Results"+"/residual_adj", self.mesh, resi_adj)
 
     # slightly perturb the kornilov mesh to get perturbed matrices
     def perturb_kornilov_mesh(self):

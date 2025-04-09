@@ -14,7 +14,9 @@ Rijke_Tube = test_case.TestCase("/RijkeTube", 'continuous', False ,path)
 Rijke_Tube.create_rijke_tube_mesh()
 Rijke_Tube.assemble_matrices()
 Rijke_Tube.solve_eigenvalue_problem()
-#Rijke_Tube.write_input_functions() # for testing
+# optional for testing
+Rijke_Tube.test_eigenvalue_solution()
+#Rijke_Tube.write_input_functions()
 Rijke_Tube.calculate_continuous_derivative()
 Rijke_Tube.log()
 gmsh.finalize() # close the gmsh session
