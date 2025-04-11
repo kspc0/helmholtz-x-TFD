@@ -84,22 +84,22 @@ def normalize_adjoint(omega_dir, p_dir, p_adj, matrices, D=None):
     # normalize according to derivation of shape derivative
     if not B and not D:
         # + 2 \omega C
-        dL_domega = matrices.C * (2 * omega_dir)
-        logging.debug("- using normalization: 2 omega C")
+        dL_domega = - matrices.C * (2 * omega_dir)
+        logging.debug("- using normalization: - 2 omega C")
     elif B and not D:
         # B + 2 \omega C
-        dL_domega = (B +
+        dL_domega = (- B -
                      matrices.C * (2 * omega_dir))
-        logging.debug("- using normalization: B + 2 omega C")
+        logging.debug("- using normalization: - B - 2 omega C")
     elif D and not B:
         # 2 \omega C - D'(\omega)
-        dL_domega = (matrices.C * (2 * omega_dir) -
+        dL_domega = (- matrices.C * (2 * omega_dir) +
                     D.get_derivative(omega_dir))
         logging.debug("- using normalization: 2 omega C - D'")
     else:
         # B + 2 \omega C - D'(\omega)
-        dL_domega = (B +
-                     matrices.C * (2 * omega_dir) -
+        dL_domega = (- B -
+                     matrices.C * (2 * omega_dir) +
                      D.get_derivative(omega_dir))
         logging.debug("- using normalization: B + 2 omega C - D'")
 

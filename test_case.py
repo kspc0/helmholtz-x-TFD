@@ -374,33 +374,6 @@ class TestCase:
         # normalize with the perturbation
         self.derivative = self.derivative / self.perturbation
     
-    # calculate the shape derivative using discrete formula
-    def calculate_discrete_derivative_conj(self):
-        logging.debug("\n--- CALCULATING DISCRETE SHAPE DERIVATIVES ---")
-        logging.debug("- calculate difference perturbed matrices")
-        diff_A = self.perturbed_matrices.A - self.matrices.A
-        diff_C = self.perturbed_matrices.C - self.matrices.C
-        # using formula of numeric/discrete shape derivative
-        logging.debug("- assembling numerator matrix")
-        Mat_n = diff_A + self.omega_adj**2 * diff_C
-        # multiply numerator matrix with direct and adjoint conjugate eigenvector
-        # vector_matrix_vector automatically conjugates transposes p_adj
-        numerator = vector_matrix_vector(conjugate(self.p_adj.vector), Mat_n, conjugate(self.p_dir.vector))
-        # assemble flame matrix
-        self.D.assemble_submatrices('direct')
-        logging.debug("- assembling denominator matrix")
-        Mat_d = -2*(self.omega_adj)*self.matrices.C + self.D.get_derivative(self.omega_adj)
-        # multiply denominator matrix with direct and adjoint conjugate eigenvector
-        # vector_matrix_vector automatically conjugates transposes p_adj
-        denominator = vector_matrix_vector(conjugate(self.p_adj.vector), Mat_d, conjugate(self.p_dir.vector))
-        logging.debug("- total shape derivative...")
-        logging.debug("- numerator:", numerator)
-        logging.debug("- denominator:", denominator)
-        # calculate quotient of complex number
-        self.derivative = numerator/denominator
-        # normalize with the perturbation
-        self.derivative = self.derivative / self.perturbation
-
     def calculate_discrete_derivative_alternative(self):
         diff_A = self.perturbed_matrices.A - self.matrices.A
         diff_C = self.perturbed_matrices.C - self.matrices.C
@@ -408,15 +381,6 @@ class TestCase:
         Mat_n = diff_A + self.omega_dir**2 * diff_C
         self.p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
         self.derivative = vector_matrix_vector(self.p_adj_norm.vector, Mat_n, self.p_dir.vector) / self.perturbation
-
-    def calculate_discrete_derivative_alternative_conj(self):
-        diff_A = self.perturbed_matrices.A - self.matrices.A
-        diff_C = self.perturbed_matrices.C - self.matrices.C
-        # using formula of numeric/discrete shape derivative
-        Mat_n = diff_A + self.omega_adj**2 * diff_C
-        self.p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
-        #self.p_adj_norm = conjugate_function(self.p_adj_norm)
-        self.derivative = vector_matrix_vector(conjugate(self.p_adj_norm.vector), Mat_n, conjugate(self.p_dir.vector)) / self.perturbation
 
     # calculate the shape derivative using continuous formula
     def calculate_continuous_derivative(self):

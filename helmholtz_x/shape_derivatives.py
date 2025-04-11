@@ -27,11 +27,12 @@ def ShapeDerivativeFullBorder(geometry, physical_facet_tag, selected_boundary_co
     # use different formulas depending on which boundary is regarded
     if selected_boundary_condition == {'Neumann'}:
         logging.debug("- Neumann Shape Gradient")
-        G_neu = div(p_adj_conj * c**2 * grad(p_dir))
-        #G_neu = p_adj_conj *c**2 * div(grad(p_dir)) # Neumann alternative form
+        G_neu = - div(p_adj_conj * c**2 * grad(p_dir)) # minus because normalization is also minus in order to have it constistent with discrete
+        #G_neu = - p_adj_conj *c**2 * div(grad(p_dir)) # Neumann alternative form
     elif selected_boundary_condition == {'Dirichlet'}:
         logging.debug("- Dirichlet Shape Gradient")
-        G_neu = - c**2 * dot(grad(p_adj_conj), normal) * dot(grad(p_dir), normal)
+        G_neu = c**2 * dot(grad(p_adj_conj), normal) * dot(grad(p_dir), normal) # plus sign because normalization is minus in order to have it constistent with discrete
+        #G_neu = c**2 * dot(grad(p_dir), normal) * dot(grad(p_adj_conj), normal) # gradient order doesnt matter
     else:
         logging.error("Error - shape gradient needs definition of according boundary")
 
