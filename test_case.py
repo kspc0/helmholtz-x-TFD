@@ -125,10 +125,10 @@ class TestCase:
         # locate the points of the 2D geometry: [m]
         p1 = gmsh.model.geo.addPoint(0, 0, 0, self.mesh_resolution)  
         p2 = gmsh.model.geo.addPoint(0, self.height, 0, self.mesh_resolution)
-        p3 = gmsh.model.geo.addPoint(self.length/4, self.height, 0, self.mesh_resolution)
+        p3 = gmsh.model.geo.addPoint(self.length/4, self.height, 0, self.mesh_resolution/3) # refined at flame
         p4 = gmsh.model.geo.addPoint(self.length, self.height, 0, self.mesh_resolution)
         p5 = gmsh.model.geo.addPoint(self.length, 0, 0, self.mesh_resolution)
-        p6 = gmsh.model.geo.addPoint(self.length/4, 0, 0, self.mesh_resolution)
+        p6 = gmsh.model.geo.addPoint(self.length/4, 0, 0, self.mesh_resolution/3) # refined at flame
         # create outlines by connecting points
         l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
         l2 = gmsh.model.geo.addLine(p2, p3) # upper wall
