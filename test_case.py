@@ -43,6 +43,7 @@ class TestCase:
         self.par = params # set public variable
         # main parameters of geometry
         self.mesh_resolution = self.par.mesh_resolution
+        self.mesh_refinement_factor = self.par.mesh_refinement_factor
         self.length = self.par.length
         self.height = self.par.height
         # test case parameters
@@ -71,8 +72,8 @@ class TestCase:
         p1 = gmsh.model.geo.addPoint(0, 0, 0, self.mesh_resolution)  
         p2 = gmsh.model.geo.addPoint(0, self.height, 0, self.mesh_resolution)
         p3 = gmsh.model.geo.addPoint(self.length, self.height, 0, self.mesh_resolution)
-        p4 = gmsh.model.geo.addPoint(self.length, self.slit_height, 0, self.mesh_resolution/4) # refine the mesh at this point
-        p5 = gmsh.model.geo.addPoint(self.length+1e-3, self.slit_height, 0, self.mesh_resolution/4)
+        p4 = gmsh.model.geo.addPoint(self.length, self.slit_height, 0, self.mesh_resolution/self.mesh_refinement_factor) # refine the mesh at this point
+        p5 = gmsh.model.geo.addPoint(self.length+1e-3, self.slit_height, 0, self.mesh_resolution/self.mesh_refinement_factor)
         p6 = gmsh.model.geo.addPoint(self.length+1e-3, self.combustion_chamber_height, 0, self.mesh_resolution)
         p7 = gmsh.model.geo.addPoint(self.length*3, self.combustion_chamber_height, 0, self.mesh_resolution)
         p8 = gmsh.model.geo.addPoint(self.length*3, 0, 0, self.mesh_resolution)
@@ -125,10 +126,10 @@ class TestCase:
         # locate the points of the 2D geometry: [m]
         p1 = gmsh.model.geo.addPoint(0, 0, 0, self.mesh_resolution)  
         p2 = gmsh.model.geo.addPoint(0, self.height, 0, self.mesh_resolution)
-        p3 = gmsh.model.geo.addPoint(self.length/4, self.height, 0, self.mesh_resolution/3) # refined at flame
+        p3 = gmsh.model.geo.addPoint(self.length/4, self.height, 0, self.mesh_resolution/self.mesh_refinement_factor) # refined at flame
         p4 = gmsh.model.geo.addPoint(self.length, self.height, 0, self.mesh_resolution)
         p5 = gmsh.model.geo.addPoint(self.length, 0, 0, self.mesh_resolution)
-        p6 = gmsh.model.geo.addPoint(self.length/4, 0, 0, self.mesh_resolution/3) # refined at flame
+        p6 = gmsh.model.geo.addPoint(self.length/4, 0, 0, self.mesh_resolution/self.mesh_refinement_factor) # refined at flame
         # create outlines by connecting points
         l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
         l2 = gmsh.model.geo.addLine(p2, p3) # upper wall
@@ -296,21 +297,30 @@ class TestCase:
         ycoords = node_coords[1::3] # get y-coordinates
         # choose which perturbation method is applied
         if pert_method == "linear": # standard
-            logging.debug("- perturbation method: linear")
+            logging.info("- perturbation method: linear")
             # perturb the chosen mesh points slightly in x direction
             for i, x in enumerate(xcoords):
                 if x > 0.3: # only perturb parts of mesh that lie behind the flame located at 0.25m
                     xcoords[i] += (x - 0.3)/(self.length - 0.3) * self.perturbation
         elif pert_method == "inside": # perturbation only inside the mesh, not the border
-            logging.info("- perturbation method: only inside")
-            # perturb the chosen mesh randomly in x y directions
-            for i, x in enumerate(xcoords):
-                if x > 0.3 and x < 0.95: # only perturb parts of mesh that lie behind the flame located at 0.25m and before the end at 0.95m
-                    xcoords[i] += (x - 0.3)/(self.length - 0.3) * self.perturbation
+            logging.info("- perturbation method: inside")
+            # perturb the chosen mesh points only inside the mesh domain, not modifying the borders
+            for i in range(len(xcoords)):
+                # slightly randomly perturb all points inside the mesh
+                if 0.3 < xcoords[i] < 1:
+                    xcoords[i] += self.perturbation
         elif pert_method == "random":
-            logging.warning("- perturbation method: random not implemented yet!")
+            #if 0.3 < xcoords[i] < 1 and 0 < ycoords[i] < 0.047:  # Only perturb points inside the mesh
+                # Slightly randomly perturb all points inside the mesh in a random direction
+                # random_perturbation_x = np.random.uniform(-self.perturbation, self.perturbation)
+                # random_perturbation_y = np.random.uniform(-self.perturbation, self.perturbation)
+                # xcoords[i] += random_perturbation_x
+                # ycoords[i] += random_perturbation_y
+            logging.warning("- perturbation method: random - not implemented yet!")
         elif pert_method == "border":
-            logging.warning("- perturbation method: border not implemented yet!")
+            logging.warning("- perturbation method: border - not implemented yet!")
+        else:
+            logging.error("Warning: unknown perturbation method")
         #xcoords += xcoords * perturbation #(case for perturbing the whole duct disregarding the flame)
         # update node x coordinates in mesh to the perturbed points
         perturbed_node_coordinates = node_coords
@@ -320,8 +330,9 @@ class TestCase:
         for tag, new_coords in zip(self.original_node_tags, perturbed_node_coordinates.reshape(-1,3)):
             gmsh.model.mesh.setNode(tag, new_coords, [])
         # update point positions
-        gmsh.model.setCoordinates(self.p3, self.perturbation + self.length, self.height, 0)
-        gmsh.model.setCoordinates(self.p4, self.perturbation + self.length, 0, 0)
+        if pert_method == "linear": # standard
+            gmsh.model.setCoordinates(self.p3, self.perturbation + self.length, self.height, 0)
+            gmsh.model.setCoordinates(self.p4, self.perturbation + self.length, 0, 0)
         # optionally launch GUI to see the results
         # if '-nopopup' not in sys.argv:
         #   gmsh.fltk.run()
@@ -368,6 +379,7 @@ class TestCase:
         self.derivative = self.derivative / self.perturbation
     
     def calculate_discrete_derivative_alternative(self):
+        logging.info("\n--- COMPUTING DISCRETE SHAPE DERIVATIVES ---")
         diff_A = self.perturbed_matrices.A - self.matrices.A
         diff_C = self.perturbed_matrices.C - self.matrices.C
         # using formula of numeric/discrete shape derivative
@@ -392,7 +404,7 @@ class TestCase:
 
     # terminal log of most important parameters and results of the calculation
     def log(self):
-        #logging.info("\n")
+        logging.info("--- LOGGING ---")
         if self.omega_dir.imag > 0: 
             stability = 'instable'
         else:
