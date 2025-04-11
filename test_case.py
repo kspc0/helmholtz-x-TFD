@@ -125,22 +125,26 @@ class TestCase:
         # locate the points of the 2D geometry: [m]
         p1 = gmsh.model.geo.addPoint(0, 0, 0, self.mesh_resolution)  
         p2 = gmsh.model.geo.addPoint(0, self.height, 0, self.mesh_resolution)
-        p3 = gmsh.model.geo.addPoint(self.length, self.height, 0, self.mesh_resolution)
-        p4 = gmsh.model.geo.addPoint(self.length, 0, 0, self.mesh_resolution)
+        p3 = gmsh.model.geo.addPoint(self.length/4, self.height, 0, self.mesh_resolution)
+        p4 = gmsh.model.geo.addPoint(self.length, self.height, 0, self.mesh_resolution)
+        p5 = gmsh.model.geo.addPoint(self.length, 0, 0, self.mesh_resolution)
+        p6 = gmsh.model.geo.addPoint(self.length/4, 0, 0, self.mesh_resolution)
         # create outlines by connecting points
         l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
         l2 = gmsh.model.geo.addLine(p2, p3) # upper wall
-        l3 = gmsh.model.geo.addLine(p3, p4) # outlet boundary
-        l4 = gmsh.model.geo.addLine(p4, p1) # lower wall
+        l3 = gmsh.model.geo.addLine(p3, p4) # upper wall
+        l4 = gmsh.model.geo.addLine(p4, p5) # outlet boundary
+        l5 = gmsh.model.geo.addLine(p5, p6) # lower wall
+        l6 = gmsh.model.geo.addLine(p6, p1) # lower wall
         # create curve loops for surface
-        loop1 = gmsh.model.geo.addCurveLoop([l1,l2,l3,l4]) # entire geometry
+        loop1 = gmsh.model.geo.addCurveLoop([l1,l2,l3,l4,l5,l6]) # entire geometry
         # create surfaces from the curved loops
         surface1 = gmsh.model.geo.addPlaneSurface([loop1]) # surface of entire geometry
         # assign physical tags for 1D boundaries
         gmsh.model.addPhysicalGroup(1, [l1], tag=1) # inlet boundary
-        gmsh.model.addPhysicalGroup(1, [l3], tag=2) # outlet boundary
-        gmsh.model.addPhysicalGroup(1, [l4], tag=3) # lower wall
-        gmsh.model.addPhysicalGroup(1, [l2], tag=4) # upper wall
+        gmsh.model.addPhysicalGroup(1, [l4], tag=2) # outlet boundary
+        gmsh.model.addPhysicalGroup(1, [l5, l6], tag=3) # lower wall
+        gmsh.model.addPhysicalGroup(1, [l2, l3], tag=4) # upper wall
         # assign physical tag for 2D surface
         gmsh.model.addPhysicalGroup(2, [surface1], tag=1)
         # create 2D mesh
@@ -158,8 +162,8 @@ class TestCase:
         self.MeshObject.getInfo()
         # save original positions of nodes and points for perturbation later
         self.original_node_tags, self.original_node_coords , _ = gmsh.model.mesh.getNodes()
-        self.p3 = p3
-        self.p4 = p4
+        self.p3 = p4 # end nodes of the tube need to be perturbed later
+        self.p4 = p5
 
     # assemble the passive matrices and the flame matrix
     def assemble_matrices(self):
@@ -221,7 +225,7 @@ class TestCase:
         self.p_dir = p_dir
         self.p_adj = p_adj
 
-    def test_eigenvalue_solution(self):
+    def compute_residual(self):
         logging.debug("\n--- TESTING EIGENSOLUTION ---")
         MAT = (self.matrices.A + self.omega_dir**2 * self.matrices.C - self.D.get_derivative(self.omega_dir))
         residual_dir = self.p_dir.vector.copy()
@@ -232,18 +236,7 @@ class TestCase:
         resi_dir = Function(V)
         resi_dir.vector.setArray(residual_dir)
         resi_dir.x.scatter_forward()
-        xdmf_writer(self.path+"/Results"+"/residual_dir", self.mesh, resi_dir)
-        # compute the residual of adjoint eigenvalue problem
-        MAT_trans = MAT.transpose()
-        MAT_trans = conjugate(MAT_trans)
-        residual_adj = self.p_adj.vector.copy()
-        MAT_trans.mult(self.p_adj.vector, residual_adj)
-        logging.debug("- residual of the adjoint eigenvalue problem computed")
-        # save residual vector as xdmf file
-        resi_adj = Function(V)
-        resi_adj.vector.setArray(residual_dir)
-        resi_adj.x.scatter_forward()
-        xdmf_writer(self.path+"/Results"+"/residual_adj", self.mesh, resi_adj)
+        xdmf_writer(self.path+"/Results"+"/residual", self.mesh, resi_dir)
 
     # slightly perturb the kornilov mesh to get perturbed matrices
     def perturb_kornilov_mesh(self, pert_method="linear"):
