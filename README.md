@@ -59,8 +59,11 @@ adjust parameters in the `*params.py` files if needed or directly when building 
 ### Examine Input Functions
 to examine the input functions h,w,T,rho,c and the free form deformation field, run the function `write_input_function()` and examine .xdmf files using paraview  
 ### Figures
-to reproduce the figures from the thesis paper this method can be used:  
+to access, modify and print figures from the `data_fig*.txt` files use this link to create an isolated environment for the jupyter notebooks:  
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/kspc0/helmholtz-x-TFD/HEAD)
+(loading this might take a while)  
+changes made in this environment will not apply to the repository and will get lost when closing the browser session  
+
+also, to reproduce the figures from scratch, you can run:  
 - `build_data_fig*.py`: computes the results and saves them as `data_fig*.txt` file
 - `plot_fig*.py`: plots the figure using python matplotlib from data in `data_fig*.txt` file
-
-
