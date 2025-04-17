@@ -15,7 +15,7 @@ Kornilov.create_kornilov_mesh()
 Kornilov.assemble_matrices()
 Kornilov.solve_eigenvalue_problem()
 # optional for testing
-Kornilov.test_eigenvalue_solution()
+#Kornilov.compute_residual()
 #Kornilov.write_input_functions()
 Kornilov.calculate_continuous_derivative()
 Kornilov.log()

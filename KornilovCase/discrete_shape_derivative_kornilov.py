@@ -15,9 +15,9 @@ Kornilov.create_kornilov_mesh()
 Kornilov.assemble_matrices()
 Kornilov.solve_eigenvalue_problem()
 # optional for testing
-Kornilov.test_eigenvalue_solution()
+#Kornilov.compute_residual()
 #Kornilov.write_input_functions()
 Kornilov.perturb_kornilov_mesh()
-Kornilov.calculate_discrete_derivative("linear") # so far only linear implemented
+Kornilov.calculate_discrete_derivative() # so far only linear implemented
 Kornilov.log()
 gmsh.finalize() # close the gmsh session

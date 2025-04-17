@@ -4,6 +4,7 @@ import os
 
 # mesh parameters
 mesh_resolution = 0.4e-3 # specify mesh resolution
+mesh_refinement_factor = 1 # specify mesh refinement factor
 length = 10e-3 # [m] length of the plenum
 height = 2.5e-3 # [m] height of the plenum
 
