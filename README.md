@@ -63,6 +63,7 @@ to access, modify and print figures from the `data_fig*.txt` files with the jupy
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/kspc0/helmholtz-x-TFD/HEAD)
  (loading this might take a while)  
 changes made in this environment will not apply to the repository and will get lost when closing the browser session  
+the `requirements.txt` files contains the required dependencies for the docker  
 
 also, to reproduce the figures from scratch, you can run:  
 - `build_data_fig*.py`: computes the results and saves them as `data_fig*.txt` file
