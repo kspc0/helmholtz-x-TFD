@@ -59,7 +59,9 @@ def vector_vector(y0, x0):
 
 
     y1 = y0.copy()
-    y1 = y0.dot(x0)
+    # here used to be written y1 = y0.dot(x0), but this is the origin of the conjugation error
+    y0.conjugate() # y0 = y0^*
+    y1 = y0.tDot(x0) # y1 = y0^T * x0
 
     return y1
 

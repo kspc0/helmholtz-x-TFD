@@ -382,10 +382,31 @@ class TestCase:
         logging.info("\n--- COMPUTING DISCRETE SHAPE DERIVATIVES ---")
         diff_A = self.perturbed_matrices.A - self.matrices.A
         diff_C = self.perturbed_matrices.C - self.matrices.C
-        # using formula of numeric/discrete shape derivative
         Mat_n = diff_A + self.omega_dir**2 * diff_C
         self.p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
         self.derivative = vector_matrix_vector(self.p_adj_norm.vector, Mat_n, self.p_dir.vector) / self.perturbation
+    
+    def calculate_discrete_derivative_dot(self):
+        diff_A = self.perturbed_matrices.A - self.matrices.A
+        diff_C = self.perturbed_matrices.C - self.matrices.C
+        Mat_n = diff_A + self.omega_dir**2 * diff_C
+        self.p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
+        temp = self.p_dir.vector.copy()
+        Mat_n.mult(self.p_dir.vector, temp)
+        #self.p_adj_norm = conjugate_function(self.p_adj_norm)
+        numerator = self.p_adj_norm.vector.dot(temp)
+        self.derivative = numerator / self.perturbation
+
+    def calculate_discrete_derivative_tDot(self):
+        diff_A = self.perturbed_matrices.A - self.matrices.A
+        diff_C = self.perturbed_matrices.C - self.matrices.C
+        Mat_n = diff_A + self.omega_dir**2 * diff_C
+        self.p_adj_norm = normalize_adjoint(self.omega_dir, self.p_dir, self.p_adj, self.matrices, self.D)
+        temp = self.p_dir.vector.copy()
+        Mat_n.mult(self.p_dir.vector, temp)
+        self.p_adj_norm = conjugate_function(self.p_adj_norm)
+        numerator = self.p_adj_norm.vector.tDot(temp)
+        self.derivative = numerator / self.perturbation
 
     # calculate the shape derivative using continuous formula
     def calculate_continuous_derivative(self):

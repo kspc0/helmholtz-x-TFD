@@ -19,11 +19,12 @@ parent_path = os.path.dirname(path)
 # create test case object
 
 # compute three times with increasing mesh resolution
-for i, name in zip([0.008, 0.006, 0.004], ["coarse", "medium", "fine"]):
-    logging.info(f"\nRunning test case with mesh resolution {i} m")
+for i, name in zip([1, 2, 3], ["coarse", "medium", "fine"]):
+    logging.info(f"\nRunning test case with mesh resolution {name}")
     # set up and solve test case of 2D Rijke Tube
     Rijke_Tube = test_case.TestCase("/RijkeTube", 'discrete', False, parent_path)
-    Rijke_Tube.mesh_resolution = i
+    #Rijke_Tube.mesh_resolution = i
+    Rijke_Tube.mesh_refinement_factor = i
     Rijke_Tube.create_rijke_tube_mesh()
     Rijke_Tube.assemble_matrices()
     Rijke_Tube.solve_eigenvalue_problem()
