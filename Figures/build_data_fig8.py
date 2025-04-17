@@ -1,5 +1,5 @@
 '''
-compute data of figure6: domain of linearity of discrete shape derivative
+compute data of figure6: domain of linearity of discrete shape derivative for Kornilov Case
 '''
 
 import os
