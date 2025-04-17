@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 fontsize = 26
 path = os.path.dirname(os.path.abspath(__file__))
-file = os.path.join(path, 'data_fig6.txt')
+file = os.path.join(path, 'data_fig8.txt')
 
 with open(file, 'r') as f:
     lines = f.readlines()

@@ -13,7 +13,7 @@ path = os.path.dirname(os.path.abspath(__file__))
 parent_path = os.path.dirname(path)
 # add the parent directory to the python path
 sys.path.append(parent_path)
-import rparams # then import the rparams module
+import RijkeTube.rparams # then import the rparams module
 type=None # type of the test case does not matter because no logging is done
 
 # calculate shape derivatives for different duct lengths
@@ -21,10 +21,10 @@ discrete_shape_derivatives = []
 continuous_shape_derivatives = []
 eigenvalues = []
 tube_length_list = np.linspace(1,2, num=11)
-frequ_list = rparams.c_amb/2/tube_length_list # calculate expected frequencies for Dirichlet-Neumann boundary conditions
+frequ_list = RijkeTube.rparams.c_amb/2/tube_length_list # calculate expected frequencies for Dirichlet-Neumann boundary conditions
 
 for tube_length, frequ in zip(tube_length_list, frequ_list):
-    Rijke_Tube = test_case.TestCase("/RijkeTube", type, True, parent_path)
+    Rijke_Tube = test_case.TestCase("/RijkeTube", type, True, parent_path + "/RijkeTube")
     # set different parameters than the standard used in rparams.py
     Rijke_Tube.length = tube_length
     Rijke_Tube.frequ = frequ

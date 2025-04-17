@@ -13,7 +13,7 @@ path = os.path.dirname(os.path.abspath(__file__))
 parent_path = os.path.dirname(path)
 # add the parent directory to the python path
 sys.path.append(parent_path)
-import kparams # then import the rparams module
+import KornilovCase.kparams # then import the rparams module
 type=None # type of the test case does not matter because no logging is done
 
 # calculate shape derivatives for different duct lengths
@@ -24,7 +24,7 @@ plenum_height = np.linspace(2.5e-3, 3e-3, num=11)
 frequ = 4500
 
 for height in plenum_height:
-    KornilovCase = test_case.TestCase("/KornilovCase", type, False, parent_path)
+    KornilovCase = test_case.TestCase("/KornilovCase", type, False, parent_path + "/KornilovCase")
     # set different parameters than the standard used in rparams.py
     KornilovCase.height = height
     KornilovCase.frequ = frequ

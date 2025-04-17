@@ -14,7 +14,7 @@ discrete_shape_derivatives = []
 for line in lines[1:]: # skip the first line
     p, der = line.strip().split(',')
     perturbations.append(float(p))
-    discrete_shape_derivatives.append(complex(der))
+    discrete_shape_derivatives.append(float(der))
 # transform the lists into numpy arrays to perform operations
 perturbations = np.array(perturbations)
 

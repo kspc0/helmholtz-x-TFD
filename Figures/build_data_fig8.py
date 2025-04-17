@@ -12,7 +12,7 @@ path = os.path.dirname(os.path.abspath(__file__))
 parent_path = os.path.dirname(path)
 
 # create test case object
-KornilovCase = test_case.TestCase("/KornilovCase", 'discrete', False, parent_path)
+KornilovCase = test_case.TestCase("/KornilovCase", 'discrete', False, parent_path + "/KornilovCase")
 
 # set up and solve test case of 2D Rijke Tube
 KornilovCase.create_kornilov_mesh()
@@ -40,7 +40,7 @@ gmsh.finalize() # close the gmsh session
 real_discrete_shape_derivatives = [derivative.real for derivative in discrete_shape_derivatives]
 imag_discrete_shape_derivatives = [derivative.imag for derivative in discrete_shape_derivatives]
 # Save the real and imaginary derivatives along with the perturbations to a text file
-output_file = os.path.join(path, 'data_fig6.txt')
+output_file = os.path.join(path, 'data_fig8.txt')
 with open(output_file, 'w') as f:
     f.write("Perturbation, Real Part, Imaginary Part\n")
     for p, real, imag in zip(perturbations, real_discrete_shape_derivatives, imag_discrete_shape_derivatives):

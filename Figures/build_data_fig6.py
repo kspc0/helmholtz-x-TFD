@@ -1,5 +1,6 @@
 '''
 compute data of figure6: residual analysis with mesh refinement
+Note: this figure is plotted in the paraview state file
 '''
 
 import os
@@ -22,7 +23,7 @@ parent_path = os.path.dirname(path)
 for i, name in zip([1, 2, 3], ["coarse", "medium", "fine"]):
     logging.info(f"\nRunning test case with mesh resolution {name}")
     # set up and solve test case of 2D Rijke Tube
-    Rijke_Tube = test_case.TestCase("/RijkeTube", 'discrete', False, parent_path)
+    Rijke_Tube = test_case.TestCase("/RijkeTube", 'discrete', False, parent_path +"/RijkeTube")
     #Rijke_Tube.mesh_resolution = i
     Rijke_Tube.mesh_refinement_factor = i
     Rijke_Tube.create_rijke_tube_mesh()
@@ -30,7 +31,7 @@ for i, name in zip([1, 2, 3], ["coarse", "medium", "fine"]):
     Rijke_Tube.solve_eigenvalue_problem()
     Rijke_Tube.compute_residual()
     # Copy the residual.xdmf file to the /Figures folder with the new name
-    source_file = os.path.join(parent_path, "Results", "residual.xdmf")
+    source_file = os.path.join(parent_path + "/RijkeTube", "Results", "residual.xdmf")
     destination_file = os.path.join(path, "data_figure6_" + name + ".xdmf")
     shutil.copy(source_file, destination_file)
     # Modify the content in the .xdmf file so it fits the .h5 file names
@@ -40,7 +41,7 @@ for i, name in zip([1, 2, 3], ["coarse", "medium", "fine"]):
     with open(destination_file, 'w') as file:
         file.write(xdmf_content)
     # Copy the residual.h5 file to the /Figures folder with the new name
-    source_h5_file = os.path.join(parent_path, "Results", "residual.h5")
+    source_h5_file = os.path.join(parent_path + "/RijkeTube", "Results", "residual.h5")
     destination_h5_file = os.path.join(path, "data_figure6_" + name + ".h5")
     shutil.copy(source_h5_file, destination_h5_file)
     del Rijke_Tube
