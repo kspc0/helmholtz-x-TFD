@@ -8,12 +8,12 @@ Modification of the helmholtz-x repository from Ekrem Ekici for the purpose of c
 - /helmholtz-x: contains a slightly modified version of the HelmholtzX toolbox from Ekrem Ekici
 - /RijkeTube: 2D Rijke tube geometry test case
 - /KornilovCase: Kornilov test case geometry test case
+- /Figures: building datasets and plotting figures and results
 #### Subfolders of Test Cases
 use paraview to analyse .xdmf files within:
 - /Meshes: mesh files
 - /Results: direct and adjoint eigenvectors and eigenvalues as .txt file
 - /InputFunctions: h,w,T,rho,c functions and Free-Form-Deformation field Vffd
-- /Figures: building datasets and plotting figures and results
 - /FTFMatrices: data for Kornilov Flame Transfer Function in state space format
 ### Files
 the `environ.yml` is used to set up conda environment as explained below
@@ -63,7 +63,7 @@ to access, modify and print figures from the `data_fig*.txt` files with the jupy
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/kspc0/helmholtz-x-TFD/HEAD)
  (loading this might take a while)  
 changes made in this environment will not apply to the repository and will get lost when closing the browser session  
-the `requirements.txt` files contains the required dependencies for the docker  
+the `requirements.txt` file contains the required dependencies for the docker  
 
 also, to reproduce the figures from scratch, you can run:  
 - `build_data_fig*.py`: computes the results and saves them as `data_fig*.txt` file
