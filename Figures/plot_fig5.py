@@ -15,39 +15,43 @@ duct = []
 eigenvalues = []
 continuous = []
 discrete = []
+analytic = []
 
 # read the data from the file
 for line in lines[1:]: # skip the first line
-    duc, eig, con, dis = line.strip().split(',')
+    duc, eig, con, dis, ana = line.strip().split(',')
     duct.append(round(float(duc),1))
     eigenvalues.append(complex(eig)/2/np.pi)
     continuous.append(complex(con))
     discrete.append(complex(dis))
+    analytic.append(float(ana))
 
 # transform the lists into numpy arrays to perform operations
 duct = np.array(duct)
 eigenvalues = np.array(eigenvalues)
 continuous = np.array(continuous)
 discrete = np.array(discrete)
+analytic = np.array(analytic)
 
 # Create a figure with a single subplot
-fig, ax = plt.subplots(figsize=(20, 6))
+fig, ax = plt.subplots(figsize=(20, 10))
 
 # Plot eigenvalues on the complex plane
 ax.scatter(eigenvalues.real, eigenvalues.imag, s=100 ,color='blue', label='Eigenvalues')
 # Add labels to each point
 for i, txt in enumerate(duct):
     ax.annotate(f'{txt}', (eigenvalues[i].real, eigenvalues[i].imag), fontsize=22,
-                 textcoords="offset points", xytext=(0,15), ha='center')
+                 textcoords="offset points", xytext=(0,25), ha='center')
 
 scale = 18
-offset = 0.01
+offset = 0.015
 # Add arrows for continuous and discrete shape derivatives
 for i in range(len(eigenvalues)):
     ax.quiver(eigenvalues[i].real, eigenvalues[i].imag+offset, continuous[i].real/scale, continuous[i].imag/scale,
                angles='xy', scale_units='xy', scale=1, color='red', label='Continuous' if i == 0 else "", width=0.0025)
     ax.quiver(eigenvalues[i].real, eigenvalues[i].imag-offset, discrete[i].real/scale, discrete[i].imag/scale,
                angles='xy', scale_units='xy', scale=1, color='green', label='Discrete' if i == 0 else "", width=0.0025)
+    ax.quiver(eigenvalues[i].real, eigenvalues[i].imag, analytic[i]/scale, 0, angles='xy', scale_units='xy', scale=1, color='blue', label='Analytic' if i == 0 else "", width=0.0025)
     #ax.arrow(eigenvalues[i].real, eigenvalues[i].imag, continuous[i].real/scale, continuous[i].imag/scale, head_width=0.01, head_length=1)
     #ax.arrow(eigenvalues[i].real, eigenvalues[i].imag, discrete[i].real/scale, discrete[i].imag/scale, head_width=0.01, head_length=1)
 

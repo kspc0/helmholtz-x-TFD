@@ -21,7 +21,7 @@ discrete_shape_derivatives = []
 continuous_shape_derivatives = []
 eigenvalues = []
 tube_length_list = np.linspace(1,2, num=11)
-frequ_list = RijkeTube.rparams.c_amb/2/tube_length_list # calculate expected frequencies for Dirichlet-Neumann boundary conditions
+frequ_list = RijkeTube.rparams.c_amb/2/tube_length_list # calculate expected frequencies for Neumann-Neumann boundary conditions
 
 for tube_length, frequ in zip(tube_length_list, frequ_list):
     Rijke_Tube = test_case.TestCase("/RijkeTube", type, True, parent_path + "/RijkeTube")
@@ -46,8 +46,9 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
     del Rijke_Tube
 
 # save the real and imaginary derivatives along with the perturbations to a text file
+analytic_shape_derivatives = - RijkeTube.rparams.c_amb/2/(tube_length_list)**2
 output_file = os.path.join(path, 'data_fig5.txt')
 with open(output_file, 'w') as f:
     f.write("duct length, eigenvalues, continuous, discrete\n")
-    for duc, eig, con, dis, in zip(tube_length_list, eigenvalues, continuous_shape_derivatives, discrete_shape_derivatives):
-        f.write(f"{duc}, {eig}, {con}, {dis} \n")
+    for duc, eig, con, dis, ana in zip(tube_length_list, eigenvalues, continuous_shape_derivatives, discrete_shape_derivatives, analytic_shape_derivatives):
+        f.write(f"{duc}, {eig}, {con}, {dis}, {ana} \n")
