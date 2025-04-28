@@ -24,3 +24,4 @@ KornilovCase/Meshes
 KornilovCase/InputFunctions
 # except this specific file
 !Figures/plot_fig6.pvsm
+!Figures/plot_fig9.pvsm

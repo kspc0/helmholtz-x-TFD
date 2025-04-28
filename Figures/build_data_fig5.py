@@ -1,5 +1,5 @@
 '''
-compute data of figure5: shape optimization with discrete and continuous shape derivative for acoustic duct
+Compute Data of Figure 5: Shape Optimization with Discrete, Continuous and Analytic Shape Derivative for Acoustic Duct
 '''
 
 import os
@@ -8,7 +8,7 @@ import gmsh
 import numpy as np
 import sys
 
-# set variables to load and save files
+# set path
 path = os.path.dirname(os.path.abspath(__file__))
 parent_path = os.path.dirname(path)
 # add the parent directory to the python path
@@ -20,7 +20,8 @@ type=None # type of the test case does not matter because no logging is done
 discrete_shape_derivatives = []
 continuous_shape_derivatives = []
 eigenvalues = []
-tube_length_list = np.linspace(1,2, num=11)
+
+tube_length_list = np.linspace(1,2, num=11) # 11 steps from 1m to 2m duct length
 frequ_list = RijkeTube.rparams.c_amb/2/tube_length_list # calculate expected frequencies for Neumann-Neumann boundary conditions
 
 for tube_length, frequ in zip(tube_length_list, frequ_list):
@@ -33,7 +34,7 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
     Rijke_Tube.assemble_matrices()
     Rijke_Tube.solve_eigenvalue_problem()
     # save eigenvalue
-    eigenvalues.append(Rijke_Tube.omega_dir)
+    eigenvalues.append(Rijke_Tube.omega_dir/2/np.pi)
     # calculate the continuous shape derivative
     Rijke_Tube.calculate_continuous_derivative()
     continuous_shape_derivatives.append(Rijke_Tube.derivative/2/np.pi)
@@ -49,6 +50,6 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
 analytic_shape_derivatives = - RijkeTube.rparams.c_amb/2/(tube_length_list)**2
 output_file = os.path.join(path, 'data_fig5.txt')
 with open(output_file, 'w') as f:
-    f.write("duct length, eigenvalues, continuous, discrete\n")
+    f.write("Duct Length [m], Eigenvalue [Hz], Continuous [Hz/m], Discrete [Hz/m], Analytic [Hz/m] \n")
     for duc, eig, con, dis, ana in zip(tube_length_list, eigenvalues, continuous_shape_derivatives, discrete_shape_derivatives, analytic_shape_derivatives):
         f.write(f"{duc}, {eig}, {con}, {dis}, {ana} \n")

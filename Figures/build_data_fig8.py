@@ -1,5 +1,5 @@
 '''
-compute data of figure6: domain of linearity of discrete shape derivative for Kornilov Case
+Compute Data of Figure 8: Domain of Linearity of Discrete Shape Derivative for Kornilov Case
 '''
 
 import os
@@ -7,7 +7,7 @@ import test_case
 import numpy as np
 import gmsh
 
-# set variables to load and save files
+# set path
 path = os.path.dirname(os.path.abspath(__file__))
 parent_path = os.path.dirname(path)
 
@@ -42,6 +42,6 @@ imag_discrete_shape_derivatives = [derivative.imag for derivative in discrete_sh
 # Save the real and imaginary derivatives along with the perturbations to a text file
 output_file = os.path.join(path, 'data_fig8.txt')
 with open(output_file, 'w') as f:
-    f.write("Perturbation, Real Part, Imaginary Part\n")
+    f.write("Perturbation [m], Discrete Real Part [Hz/m], Discrete Imaginary Part [Hz/m] \n")
     for p, real, imag in zip(perturbations, real_discrete_shape_derivatives, imag_discrete_shape_derivatives):
         f.write(f"{p}, {real}, {imag}\n")

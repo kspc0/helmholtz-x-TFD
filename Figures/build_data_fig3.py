@@ -1,5 +1,5 @@
 '''
-compute data of figure3: shape optimization with discrete and continuous shape derivative for 2D Rijke tube
+Compute Data of Figure 3: Shape Optimization with Discrete and Continuous Shape Derivatives for 2D Rijke tube
 '''
 
 import os
@@ -8,7 +8,7 @@ import gmsh
 import numpy as np
 import sys
 
-# set variables to load and save files
+# set path
 path = os.path.dirname(os.path.abspath(__file__))
 parent_path = os.path.dirname(path)
 # add the parent directory to the python path
@@ -20,17 +20,19 @@ type=None # type of the test case does not matter because no logging is done
 discrete_shape_derivatives = []
 continuous_shape_derivatives = []
 eigenvalues = []
-tube_length_list = np.linspace(1,2, num=10)
+
+tube_length_list = np.linspace(1,2, num=10) # 10 steps from 1m to 2m duct length
 specific_boundary_conditions =  {1:  {'Neumann'}, # inlet
                                  2:  {'Dirichlet'}, # outlet
                                  3:  {'Neumann'}, # upper wall
                                  4:  {'Neumann'}} # lower wall
-frequ_list = -RijkeTube.rparams.c_amb/4/tube_length_list # calculate a target frequency for Neumann-Dirichlet boundary conditions for homogeneous tube
+# calculate a target frequency for Neumann-Dirichlet boundary conditions for a homogeneous tube
+frequ_list = -RijkeTube.rparams.c_amb/4/tube_length_list
 
 for tube_length, frequ in zip(tube_length_list, frequ_list):
     Rijke_Tube = test_case.TestCase("/RijkeTube", type, False, parent_path + "/RijkeTube")
     Rijke_Tube.boundary_conditions = specific_boundary_conditions
-    # set different parameters than the standard used in rparams.py
+    # overwrite standard parameters used in rparams.py
     Rijke_Tube.length = tube_length
     Rijke_Tube.frequ = frequ
     # set up and solve test case of 2D Rijke Tube
@@ -38,7 +40,7 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
     Rijke_Tube.assemble_matrices()
     Rijke_Tube.solve_eigenvalue_problem()
     # save eigenvalue
-    eigenvalues.append(Rijke_Tube.omega_dir)
+    eigenvalues.append(Rijke_Tube.omega_dir/2/np.pi)
     # calculate the continuous shape derivative
     Rijke_Tube.calculate_continuous_derivative()
     continuous_shape_derivatives.append(Rijke_Tube.derivative/2/np.pi)
@@ -53,6 +55,6 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
 # save the real and imaginary derivatives along with the perturbations to a text file
 output_file = os.path.join(path, 'data_fig3.txt')
 with open(output_file, 'w') as f:
-    f.write("duct length, eigenvalues, continuous, discrete\n")
+    f.write("Duct Length [m], Eigenvalue [Hz], Continuous [Hz/m], Discrete [Hz/m] \n")
     for duc, eig, con, dis, in zip(tube_length_list, eigenvalues, continuous_shape_derivatives, discrete_shape_derivatives):
         f.write(f"{duc}, {eig}, {con}, {dis} \n")

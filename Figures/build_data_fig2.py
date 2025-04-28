@@ -1,5 +1,5 @@
 '''
-compute data of figure2: comparison of discrete, analytic and continuous shape derivative for acoustic duct
+Compute Data of Figure 2: Comparison of Discrete, Analytic and Continuous Shape Derivative for Acoustic Duct
 '''
 
 import os
@@ -8,22 +8,22 @@ import gmsh
 import numpy as np
 import sys
 
-# set variables to load and save files
+# set path
 path = os.path.dirname(os.path.abspath(__file__))
 parent_path = os.path.dirname(path)
 # add the parent directory to the python path
 sys.path.append(parent_path)
 import RijkeTube.rparams # then import the rparams module
 
-# calculate shape derivatives for different duct lengths
 discrete_shape_derivatives = []
 coarse_discrete_shape_derivatives = []
 continuous_shape_derivatives = []
 analytic_shape_derivatives = []
-tube_length_list = np.linspace(1, 1.1, num=11)
+
+tube_length_list = np.linspace(1, 1.1, num=11) # 11 steps from 1m to 1.1m duct length
 frequ_list = RijkeTube.rparams.c_amb/4/tube_length_list # calculate expected frequencies for Neumann-Dirichlet boundary conditions
 
-# set specific parameters for duct
+# set specific parameters for acoustic duct
 specific_mesh_resolution = 0.01 # specify mesh resolution
 # set specific boundary conditions
 specific_boundary_conditions =  {1:  {'Neumann'}, # inlet
@@ -34,10 +34,10 @@ specific_boundary_conditions =  {1:  {'Neumann'}, # inlet
 specific_homogeneous_case = True
 type = None # type of the test case does not matter because no logging is done
 
-# iterate over different duct lengths with different target frequencies
+# iterate over different duct lengths with changing target frequencies
 for tube_length, frequ in zip(tube_length_list, frequ_list):
     Rijke_Tube = test_case.TestCase("/RijkeTube", type, specific_homogeneous_case, parent_path + "/RijkeTube")
-    # set different parameters than the standard used in rparams.py
+    # overwrite standard parameters used in rparams.py
     Rijke_Tube.length = tube_length
     Rijke_Tube.frequ = frequ
     Rijke_Tube.mesh_resolution = specific_mesh_resolution
@@ -63,7 +63,7 @@ specific_perturbation = 0.01
 # calculate coarse discrete shape derivative
 for tube_length, frequ in zip(tube_length_list, frequ_list):
     Rijke_Tube = test_case.TestCase("/RijkeTube", type, specific_homogeneous_case, parent_path + "/RijkeTube")
-    # set different parameters than the standard used in rparams.py
+    # overwrite standard parameters used in rparams.py
     Rijke_Tube.length = tube_length
     Rijke_Tube.frequ = frequ
     Rijke_Tube.mesh_resolution = specific_mesh_resolution
@@ -86,6 +86,6 @@ analytic_shape_derivatives = - RijkeTube.rparams.c_amb/4/(tube_length_list)**2
 # save the real and imaginary derivatives along with the perturbations to a text file
 output_file = os.path.join(path, 'data_fig2.txt')
 with open(output_file, 'w') as f:
-    f.write("duct length, frequency, analytic, continuous, discrete_fine, discrete_coarse\n")
+    f.write("Duct Length [m], Frequency [Hz], Analytic [Hz/m], Continuous [Hz/m], Discrete_fine [Hz/m], Discrete_coarse [Hz/m] \n")
     for duc, fre, ana, con, f_dis, c_dis in zip(tube_length_list, frequ_list, analytic_shape_derivatives, continuous_shape_derivatives, discrete_shape_derivatives, coarse_discrete_shape_derivatives):
         f.write(f"{duc}, {fre}, {ana}, {con}, {f_dis}, {c_dis}\n")

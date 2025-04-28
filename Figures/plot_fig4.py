@@ -1,9 +1,10 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+
 fontsize = 26
-path = os.path.dirname(os.path.abspath(__file__))
-file = os.path.join(path, 'data_fig4.txt')
+os.chdir(os.path.join(os.getcwd()))
+file = os.path.join('data_fig4.txt')
 
 with open(file, 'r') as f:
     lines = f.readlines()

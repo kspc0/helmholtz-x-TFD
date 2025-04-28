@@ -1,5 +1,5 @@
 '''
-compute data of figure4: domain of linearity of discrete shape derivative for acoustic duct
+Compute Data of Figure 4: Domain of Linearity of Discrete Shape Derivative for Acoustic Duct
 '''
 
 import os
@@ -7,7 +7,7 @@ import test_case
 import numpy as np
 import gmsh
 
-# set variables to load and save files
+# set path
 path = os.path.dirname(os.path.abspath(__file__))
 parent_path = os.path.dirname(path)
 
@@ -38,6 +38,6 @@ gmsh.finalize() # close the gmsh session
 # save derivatives along with the perturbations to a text file
 output_file = os.path.join(path, 'data_fig4.txt')
 with open(output_file, 'w') as f:
-    f.write("Perturbation, Discrete Shape Derivative\n")
+    f.write("Perturbation [m], Discrete [Hz/m] \n")
     for p, deriv in zip(perturbations, discrete_shape_derivatives):
         f.write(f"{p}, {deriv.real}\n")

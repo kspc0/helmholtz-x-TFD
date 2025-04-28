@@ -51,7 +51,7 @@ class TestCase:
         self.perturbation = self.par.perturbation
         self.frequ = self.par.frequ
         self.boundary_conditions = self.par.boundary_conditions
-        self.homogeneous_case = hom_case
+        self.homogeneous_case = hom_case # fast change between homogeneous and inhomogeneous case
         # initialize input/output values for homogeneous or inhomogeneous case
         if self.homogeneous_case: # homogeneous case
             self.T_out = self.par.T_in # no temperature gradient

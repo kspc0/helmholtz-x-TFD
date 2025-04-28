@@ -3,9 +3,8 @@ import numpy as np
 import os
 
 fontsize=26
-# set path to data
-path = os.path.dirname(os.path.abspath(__file__))
-file = os.path.join(path, 'data_fig2.txt')
+os.chdir(os.path.join(os.getcwd()))
+file = os.path.join('data_fig2.txt')
 
 # read file
 with open(file, 'r') as f:

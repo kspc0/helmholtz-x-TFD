@@ -2,9 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-# set path to data
-path = os.path.dirname(os.path.abspath(__file__))
-file = os.path.join(path, 'data_fig3.txt')
+os.chdir(os.path.join(os.getcwd()))
+file = os.path.join('data_fig3.txt')
 
 # read file
 with open(file, 'r') as f:
@@ -20,7 +19,7 @@ discrete = []
 for line in lines[1:]: # skip the first line
     duc, eig, con, dis = line.strip().split(',')
     duct.append(round(float(duc),1))
-    eigenvalues.append(complex(eig)/2/np.pi)
+    eigenvalues.append(complex(eig))
     continuous.append(complex(con))
     discrete.append(complex(dis))
 
