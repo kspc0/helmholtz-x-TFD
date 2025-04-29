@@ -206,7 +206,8 @@ class TestCase:
             logging.debug("\n- DIRECT PROBLEM -")
             self.D.assemble_submatrices('direct') # assemble direct flame matrix
             # calculate the eigenvalues and eigenvectors
-            omega_dir, p_dir, p_adj = newtonSolver(self.matrices, self.degree, self.D, target, nev=1, i=0, tol=1e-2, maxiter=70, problem_type='direct', print_results= False)
+            omega_dir, p_dir, p_adj = newtonSolver(self.matrices, self.degree, self.D, target, nev=1, i=0, tol=1e-2,
+                                                    maxiter=70, problem_type='direct', print_results= False)
             #print("- omega_dir:", omega_dir)
             omega_adj = np.conj(omega_dir) # conjugate eigenvalue
         except IndexError:

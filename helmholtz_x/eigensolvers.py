@@ -69,6 +69,20 @@ def pep_solver(A, B, C, target, nev, print_results=False):
     return Q
 
 
+def stability_map(operators, D, target, nev, print_results=False):
+    D.assemble_submatrices('direct') # assemble direct flame matrix
+    D.assemble_matrix(target*2*np.pi, problem_type='direct')
+    L = operators.A + target*2*np.pi ** 2 * operators.C - D.matrix
+    E = eps_solver(L, - operators.C, 0, nev=nev, two_sided=True, print_results=print_results)
+    nconv = E.getConverged()
+    print("Number of converged eigenvalues: ", nconv)
+    eig_list = []
+    for i in range(nconv):
+        val = E.getEigenvalue(i)
+        eig_list.append(val)
+    return eig_list
+
+
 # Newton solver for eigenvalue problem
 def newtonSolver(operators, degree, D, init, nev, i, tol, maxiter, problem_type, print_results=False):
     """
@@ -126,9 +140,8 @@ def newtonSolver(operators, degree, D, init, nev, i, tol, maxiter, problem_type,
         # usually we solve L(\omega) * p = \lambda*Id*p, but here we set matrix C, to give the convergence a headstart
         # mass matrix C defines the scale of the problem, which makes it easier to converge
         # target is ZERO!!!
-        E = eps_solver(L, - C, 0, nev, two_sided=True, print_results=print_results) # why never use pep solver?
+        E = eps_solver(L, - C, 0, nev, two_sided=True, print_results=print_results)
         eig = E.getEigenvalue(i)
-        #print("-nvalue: ", eig)
         # normalize the eigenvectors
         # p is either direct or adjoint eigenvector, depending on which matrix D was assembled earlier
         omega_dir, p = normalize_eigenvector(operators.mesh, E, i, degree=degree, which='right', print_eigs=False)
