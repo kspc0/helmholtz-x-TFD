@@ -21,18 +21,17 @@ Rijke_Tube.solve_eigenvalue_problem()
 
 # calculate shape derivatives for different perturbations
 discrete_shape_derivatives = []
-perturbations = np.linspace(0.001,0.3, num=20)
+perturbations = np.linspace(0.00001, 0.06, num=40)
 
 for perturbation in perturbations:
+    print("- iterating on perturbation: ", perturbation)
     # set new perturbation distance
     Rijke_Tube.perturbation = perturbation
     # calculate the shape derivative for this perturbation
     Rijke_Tube.perturb_rijke_tube_mesh()
     Rijke_Tube.calculate_discrete_derivative()
     # save the calculated shape derivative
-    discrete_shape_derivatives.append(Rijke_Tube.derivative/2/np.pi)
-    # print log information
-    Rijke_Tube.log()
+    discrete_shape_derivatives.append(Rijke_Tube.derivative/2/np.pi*Rijke_Tube.perturbation) # cancel out perturbation factor
 gmsh.finalize() # close the gmsh session
 
 # save derivatives along with the perturbations to a text file

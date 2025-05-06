@@ -22,16 +22,13 @@ continuous_shape_derivatives = []
 eigenvalues = []
 
 tube_length_list = np.linspace(1,2, num=10) # 10 steps from 1m to 2m duct length
-specific_boundary_conditions =  {1:  {'Neumann'}, # inlet
-                                 2:  {'Dirichlet'}, # outlet
-                                 3:  {'Neumann'}, # upper wall
-                                 4:  {'Neumann'}} # lower wall
 # calculate a target frequency for Neumann-Dirichlet boundary conditions for a homogeneous tube
+# inhomogeneous frequency is in viscinity of this value
 frequ_list = -RijkeTube.rparams.c_amb/4/tube_length_list
 
 for tube_length, frequ in zip(tube_length_list, frequ_list):
+    print("- iterating on tube length: ", tube_length)
     Rijke_Tube = test_case.TestCase("/RijkeTube", type, False, parent_path + "/RijkeTube")
-    Rijke_Tube.boundary_conditions = specific_boundary_conditions
     # overwrite standard parameters used in rparams.py
     Rijke_Tube.length = tube_length
     Rijke_Tube.frequ = frequ
@@ -42,7 +39,7 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
     # save eigenvalue
     eigenvalues.append(Rijke_Tube.omega_dir/2/np.pi)
     # calculate the continuous shape derivative
-    Rijke_Tube.calculate_continuous_derivative()
+    Rijke_Tube.calculate_continuous_derivative("outlet")
     continuous_shape_derivatives.append(Rijke_Tube.derivative/2/np.pi)
     # calculate the discrete shape derivative
     Rijke_Tube.perturb_rijke_tube_mesh()

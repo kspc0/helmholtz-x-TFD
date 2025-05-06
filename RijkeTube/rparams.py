@@ -10,12 +10,12 @@ height = 0.047 # [m] height of the tube
 
 # eigenvalue problem parameters
 degree = 2 # degree of FEM polynomials
-frequ = 200 # [Hz] where to expect first mode ! initial value is negative the frequency
+frequ = -100 # [Hz] where to expect first mode ! initial value is negative the frequency
 
 perturbation = 0.001 # [m] perturbation distance
 # set boundary conditions
 boundary_conditions =  {1:  {'Neumann'}, # inlet
-                        2:  {'Neumann'}, # outlet
+                        2:  {'Dirichlet'}, # outlet
                         3:  {'Neumann'}, # upper wall
                         4:  {'Neumann'}} # lower wall
 

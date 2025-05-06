@@ -21,10 +21,13 @@ discrete_shape_derivatives = []
 continuous_shape_derivatives = []
 eigenvalues = []
 
-tube_length_list = np.linspace(1,2, num=11) # 11 steps from 1m to 2m duct length
-frequ_list = RijkeTube.rparams.c_amb/2/tube_length_list # calculate expected frequencies for Neumann-Neumann boundary conditions
+tube_length_list = np.linspace(1,2, num=6) # 11 steps from 1m to 2m duct length
+frequ_list = -RijkeTube.rparams.c_amb/2/tube_length_list # calculate expected frequencies for Neumann-Neumann boundary conditions
+# compute analytic shape derivative with positive sign because targeting negative frequencies
+analytic_shape_derivatives = RijkeTube.rparams.c_amb/4/(tube_length_list)**2
 
 for tube_length, frequ in zip(tube_length_list, frequ_list):
+    print("- iterating on tube length: ", tube_length)
     Rijke_Tube = test_case.TestCase("/RijkeTube", type, True, parent_path + "/RijkeTube")
     # set different parameters than the standard used in rparams.py
     Rijke_Tube.length = tube_length
@@ -36,7 +39,7 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
     # save eigenvalue
     eigenvalues.append(Rijke_Tube.omega_dir/2/np.pi)
     # calculate the continuous shape derivative
-    Rijke_Tube.calculate_continuous_derivative()
+    Rijke_Tube.calculate_continuous_derivative("outlet")
     continuous_shape_derivatives.append(Rijke_Tube.derivative/2/np.pi)
     # calculate the discrete shape derivative
     Rijke_Tube.perturb_rijke_tube_mesh()
@@ -47,7 +50,6 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
     del Rijke_Tube
 
 # save the real and imaginary derivatives along with the perturbations to a text file
-analytic_shape_derivatives = - RijkeTube.rparams.c_amb/2/(tube_length_list)**2
 output_file = os.path.join(path, 'data_fig5.txt')
 with open(output_file, 'w') as f:
     f.write("Duct Length [m], Eigenvalue [Hz], Continuous [Hz/m], Discrete [Hz/m], Analytic [Hz/m] \n")

@@ -9,10 +9,6 @@ import logging
 import sys
 import shutil
 
-# Global logger setup
-logger = logging.getLogger()  # Default logger
-logger.setLevel(logging.INFO)  # Set the logging level
-
 # set path
 path = os.path.dirname(os.path.abspath(__file__))
 parent_path = os.path.dirname(path)
@@ -30,8 +26,9 @@ Kornilov.solve_eigenvalue_problem()
 # overextend the standard perturbation to make it more visible
 Kornilov.perturbation = Kornilov.perturbation *10
 
-Kornilov.perturb_kornilov_mesh()
+Kornilov.perturb_kornilov_mesh("y")
 
+print("processing original mesh")
 # copy the mesh KornilovCase.xdmf file to the /Figures folder with a new name
 source_file = os.path.join(parent_path + "/KornilovCase", "Meshes", "KornilovCase.xdmf")
 destination_file = os.path.join(path, "data_fig9_original.xdmf")
@@ -47,7 +44,7 @@ source_h5_file = os.path.join(parent_path + "/KornilovCase", "Meshes", "Kornilov
 destination_h5_file = os.path.join(path, "data_fig9_original.h5")
 shutil.copy(source_h5_file, destination_h5_file)
 
-
+print("processing scaled-perturbed mesh")
 # copy the mesh KornilovCase_perturbed.xdmf file to the /Figures folder with a new name
 source_file = os.path.join(parent_path + "/KornilovCase", "Meshes", "KornilovCase_perturbed.xdmf")
 destination_file = os.path.join(path, "data_fig9_perturbed.xdmf")

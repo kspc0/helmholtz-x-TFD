@@ -10,7 +10,7 @@ height = 2.5e-3 # [m] height of the plenum
 
 # eigenvalue problem parameters
 degree = 2 # degree of FEM polynomials
-frequ = -3000 # [Hz] where to expect first mode
+frequ = -5000 # [Hz] where to expect first mode
 
 perturbation = 0.00001 # [m] perturbation distance
 homogeneous_case = False # True for homogeneous case, False for inhomogeneous case

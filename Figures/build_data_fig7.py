@@ -21,9 +21,10 @@ continuous_shape_derivatives = []
 eigenvalues = []
 
 plenum_height = np.linspace(2.5e-3, 3e-3, num=11) # 11 steps from 2.5mm to 3mm plenum height
-frequ = kparams.c_amb/4/kparams.length # calculate expected frequencies for Neumann-Dirichlet boundary conditions
+frequ = -kparams.c_amb/4/kparams.length # calculate expected frequencies for Neumann-Dirichlet boundary conditions
 
 for height in plenum_height:
+    print("- running test case with plenum height: ", height)
     KornilovCase = test_case.TestCase("/KornilovCase", type, False, parent_path + "/KornilovCase")
     # overwrite standard parameters used in kparams.py
     KornilovCase.height = height
@@ -35,10 +36,10 @@ for height in plenum_height:
     # save eigenvalue
     eigenvalues.append(KornilovCase.omega_dir/2/np.pi)
     # calculate the continuous shape derivative
-    KornilovCase.calculate_continuous_derivative()
+    KornilovCase.calculate_continuous_derivative("upper plenum")
     continuous_shape_derivatives.append(KornilovCase.derivative/2/np.pi)
     # calculate the discrete shape derivative
-    KornilovCase.perturb_kornilov_mesh()
+    KornilovCase.perturb_kornilov_mesh("y")
     KornilovCase.calculate_discrete_derivative()
     discrete_shape_derivatives.append(KornilovCase.derivative/2/np.pi)
     gmsh.finalize() # close the gmsh session

@@ -10,16 +10,13 @@ import gmsh
 import logging
 import shutil
 
-# set logger
-logger = logging.getLogger()  # Default logger
-logger.setLevel(logging.INFO)  # Set the logging level
 # set path
 path = os.path.dirname(os.path.abspath(__file__))
 parent_path = os.path.dirname(path)
 
 # compute three times with increasing mesh resolution
 for i, name in zip([1, 2, 3], ["coarse", "medium", "fine"]):
-    logging.info(f"\nRunning test case with mesh resolution {name}")
+    print("- running test case with mesh resolution: ", name)
     # set up and solve test case of 2D Rijke Tube
     Rijke_Tube = test_case.TestCase("/RijkeTube", 'discrete', False, parent_path +"/RijkeTube")
     #Rijke_Tube.mesh_resolution = i

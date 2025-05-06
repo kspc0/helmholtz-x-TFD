@@ -114,6 +114,7 @@ class TestCase:
         self.MeshObject.getInfo()
         # save original positions of nodes and points for perturbation later
         self.original_node_tags, self.original_node_coords , _ = gmsh.model.mesh.getNodes()
+        self.p1 = p1
         self.p2 = p2
         self.p3 = p3
 
@@ -206,7 +207,8 @@ class TestCase:
             logging.debug("\n- DIRECT PROBLEM -")
             self.D.assemble_submatrices('direct') # assemble direct flame matrix
             # calculate the eigenvalues and eigenvectors
-            omega_dir, p_dir, p_adj = newtonSolver(self.matrices, self.degree, self.D, target, nev=1, i=0, tol=1e-2, maxiter=70, problem_type='direct', print_results= False)
+            omega_dir, p_dir, p_adj = newtonSolver(self.matrices, self.degree, self.D, target, nev=1,
+                                                    i=0, tol=1e-2, maxiter=70, problem_type='direct', print_results= False)
             #print("- omega_dir:", omega_dir)
             omega_adj = np.conj(omega_dir) # conjugate eigenvalue
         except IndexError:
@@ -240,7 +242,7 @@ class TestCase:
         xdmf_writer(self.path+"/Results"+"/residual", self.mesh, resi_dir)
 
     # slightly perturb the kornilov mesh to get perturbed matrices
-    def perturb_kornilov_mesh(self, pert_method="linear"):
+    def perturb_kornilov_mesh(self, pert_method):
         logging.debug("\n--- PERTURBING THE MESH ---")
         # copy the original node coordinates in order to prevent overwriting
         node_coords = np.array(self.original_node_coords, dtype=np.float64)
@@ -252,22 +254,38 @@ class TestCase:
         # create list to store the indices of the plenum nodes
         plenum_node_indices = []
         perturbed_node_coordinates = node_coords
-        # choose points which have smaller x coordinate then 10mm or have x coordinate of 10mm and y coordinate greater than 1mm
-        # these are all the points in the plenum without the slit entry
-        for i in range(len(xcoords)):
-            if (xcoords[i] < self.length) or (xcoords[i] == self.length and ycoords[i] > self.slit_height):
-                plenum_node_indices.append(i) # store the index of the plenum nodes in this array
-        # perturb the chosen mesh points slightly in y direction
-        # perturbation is percent based on the y-coordinate
-        ycoords[plenum_node_indices] += ycoords[plenum_node_indices] / self.height * self.perturbation
-        # update node y coordinates in mesh from the perturbed points and the unperturbed original points
-        perturbed_node_coordinates[1::3] = ycoords
+        if pert_method == "y": # increase of plenum height
+            logging.info("- perturbation method: y-direction")
+            # choose points which have smaller x coordinate then 10mm 
+            # or have x coordinate of 10mm and y coordinate greater than 1mm
+            # these are all the points in the plenum without the slit entry
+            for i in range(len(xcoords)):
+                if (xcoords[i] < self.length) or (xcoords[i] == self.length and ycoords[i] > self.slit_height):
+                    plenum_node_indices.append(i) # store the index of the plenum nodes in this array
+            # perturb the chosen mesh points slightly in y direction
+            # perturbation is percent based on the y-coordinate
+            ycoords[plenum_node_indices] += ycoords[plenum_node_indices] / self.height * self.perturbation
+            # update node y coordinates in mesh from the perturbed points and the unperturbed original points
+            perturbed_node_coordinates[1::3] = ycoords
+        elif pert_method == "x": # change in inlet direction
+            logging.info("- perturbation method: x-direction")
+            for i in range(len(xcoords)):
+                if xcoords[i] < self.length:
+                    plenum_node_indices.append(i)
+            xcoords[plenum_node_indices] += (xcoords[plenum_node_indices]-self.length) / self.length * self.perturbation
+            perturbed_node_coordinates[0::3] = xcoords
+        else:
+            logging.error("Warning: unknown perturbation method")
         # update node positions
         for tag, new_coords in zip(self.original_node_tags, perturbed_node_coordinates.reshape(-1,3)):
             gmsh.model.mesh.setNode(tag, new_coords, [])
         # update point positions
-        gmsh.model.setCoordinates(self.p2, 0, self.perturbation + self.height, 0)
-        gmsh.model.setCoordinates(self.p3, self.length, self.perturbation + self.height, 0)
+        if pert_method == "y": 
+            gmsh.model.setCoordinates(self.p2, 0, self.perturbation + self.height, 0)
+            gmsh.model.setCoordinates(self.p3, self.length, self.perturbation + self.height, 0)
+        elif pert_method == "x":
+            gmsh.model.setCoordinates(self.p1, -self.perturbation, 0, 0)
+            gmsh.model.setCoordinates(self.p2, -self.perturbation, self.height, 0)
         # optionally launch GUI to see the results
         # if '-nopopup' not in sys.argv:
         #   gmsh.fltk.run()
@@ -284,7 +302,8 @@ class TestCase:
         # define temperature gradient function in geometry
         T_pert = dist_params.step_function(self.perturbed_mesh, self.par.x_f, self.par.T_in, self.T_out)
         # calculate the passive acoustic matrices
-        self.perturbed_matrices = AcousticMatrices(self.perturbed_mesh, self.perturbed_facet_tags, self.boundary_conditions, T_pert , self.degree) # very large, sparse matrices
+        self.perturbed_matrices = AcousticMatrices(self.perturbed_mesh, self.perturbed_facet_tags,
+                                                    self.boundary_conditions, T_pert , self.degree) # very large, sparse matrices
 
     # slightly perturb the rijketube mesh to get perturbed matrices
     def perturb_rijke_tube_mesh(self, pert_method="linear"):
@@ -349,7 +368,8 @@ class TestCase:
         # define temperature gradient function in geometry
         T_pert = dist_params.step_function(self.perturbed_mesh, self.par.x_f, self.par.T_in, self.T_out)
         # calculate the passive acoustic matrices
-        self.perturbed_matrices = AcousticMatrices(self.perturbed_mesh, self.perturbed_facet_tags, self.boundary_conditions, T_pert , self.degree) # very large, sparse matrices
+        self.perturbed_matrices = AcousticMatrices(self.perturbed_mesh, self.perturbed_facet_tags, 
+                                                   self.boundary_conditions, T_pert , self.degree) # very large, sparse matrices
 
     # calculate the shape derivative using the discrete formula
     def calculate_discrete_derivative(self):
@@ -366,19 +386,24 @@ class TestCase:
         self.derivative = vector_matrix_vector(self.p_adj_norm.vector, Mat_n, self.p_dir.vector) / self.perturbation
     
     # calculate the shape derivative using continuous formula
-    def calculate_continuous_derivative(self):
+    def calculate_continuous_derivative(self, tag):
         logging.info("\n--- COMPUTING CONTINUOUS SHAPE DERIVATIVES ---")
-        physical_facet_tags = {1: 'inlet', 2: 'outlet', 5:'upper plenum'}
-        if self.name == "/KornilovCase":
-            selected_facet_tag = 5 # tag of the wall to be displaced
-            norm_vector = [0,1] # normal vector of the wall to be displaced
-        elif self.name == "/RijkeTube":
+        if tag == "inlet":
+            selected_facet_tag = 1 # tag of the wall to be displaced
+            norm_vector = [-1,0] # normal vector of the wall to be displaced
+        elif tag == "outlet":
             selected_facet_tag = 2
             norm_vector = [1,0]
+        elif tag == "upper plenum":
+            selected_facet_tag = 5
+            norm_vector = [0,1]
+        else:
+            logging.error("Error: unknown facet tag")
         selected_boundary_condition = self.boundary_conditions[selected_facet_tag]
         logging.debug("- boundary: %s", selected_boundary_condition)
         # calculate the shape derivatives for the border
-        self.derivative = ShapeDerivativeFullBorder(self.MeshObject, selected_facet_tag, selected_boundary_condition, norm_vector, self.omega_dir, self.p_dir, self.p_adj, self.c, self.matrices, self.D)
+        self.derivative = ShapeDerivativeFullBorder(self.MeshObject, selected_facet_tag, selected_boundary_condition, norm_vector,
+                                                     self.omega_dir, self.p_dir, self.p_adj, self.c, self.matrices, self.D)
 
     # terminal log of most important parameters and results of the calculation
     def log(self):
@@ -393,7 +418,7 @@ class TestCase:
         logging.info(f"---> \033[1mPerturbation Distance =\033[0m {self.perturbation} m")
         logging.info(f"---> \033[1mTarget =\033[0m {self.frequ} Hz ")
         logging.info(f"---> \033[1mOmega =\033[0m {self.omega_dir.real} + {self.omega_dir.imag}j ({stability})")
-        logging.info(f"---> \033[1m(Frequ) =\033[0m {self.omega_dir.real/-2/np.pi} Hz")
+        logging.info(f"---> \033[1m(Frequ) =\033[0m {self.omega_dir.real/-2/np.pi} Hz") # needs negative sign to fit the physical frequency
         logging.info(f"---> \033[1m(Growth Rate) =\033[0m {self.omega_dir.imag/2/np.pi} 1/s")
         #logging.info(f"---> \033[1mEigenfrequency =\033[0m {round(self.omega_dir.real/2/np.pi,4)} + {round(self.omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
         logging.info(f"---> \033[1m{self.type.capitalize()} Shape Derivative =\033[0m {round(self.derivative.real/2/np.pi,8)} + {round(self.derivative.imag/2/np.pi,8)}j")

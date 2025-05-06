@@ -15,8 +15,8 @@ Rijke_Tube.create_rijke_tube_mesh()
 Rijke_Tube.assemble_matrices()
 Rijke_Tube.solve_eigenvalue_problem()
 # optional for testing
-Rijke_Tube.compute_residual()
+#Rijke_Tube.compute_residual()
 #Rijke_Tube.write_input_functions()
-Rijke_Tube.calculate_continuous_derivative()
+Rijke_Tube.calculate_continuous_derivative("outlet")
 Rijke_Tube.log()
 gmsh.finalize() # close the gmsh session

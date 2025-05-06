@@ -25,15 +25,14 @@ discrete_shape_derivatives = []
 perturbations = np.linspace(1e-6, 4e-4 , num=30)
 
 for perturbation in perturbations:
+    print("- iterating on perturbation: ", perturbation)
     # set new perturbation distance
     KornilovCase.perturbation = perturbation
     # calculate the shape derivative for this perturbation
-    KornilovCase.perturb_kornilov_mesh()
+    KornilovCase.perturb_kornilov_mesh("y")
     KornilovCase.calculate_discrete_derivative()
     # save the calculated shape derivative
-    discrete_shape_derivatives.append(KornilovCase.derivative/2/np.pi)
-    # print log information
-    KornilovCase.log()
+    discrete_shape_derivatives.append(KornilovCase.derivative/2/np.pi*KornilovCase.perturbation)
 gmsh.finalize() # close the gmsh session
 
 # extract the discrete shape derivatives as complex numbers
