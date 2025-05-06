@@ -41,6 +41,6 @@ imag_discrete_shape_derivatives = [derivative.imag for derivative in discrete_sh
 # Save the real and imaginary derivatives along with the perturbations to a text file
 output_file = os.path.join(path, 'data_fig8.txt')
 with open(output_file, 'w') as f:
-    f.write("Perturbation [m], Discrete Real Part [Hz/m], Discrete Imaginary Part [Hz/m] \n")
+    f.write("Perturbation [m], delta omega Real Part [Hz/m], delta omega Imaginary Part [Hz/m] \n")
     for p, real, imag in zip(perturbations, real_discrete_shape_derivatives, imag_discrete_shape_derivatives):
         f.write(f"{p}, {real}, {imag}\n")

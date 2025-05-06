@@ -37,6 +37,6 @@ gmsh.finalize() # close the gmsh session
 # save derivatives along with the perturbations to a text file
 output_file = os.path.join(path, 'data_fig4.txt')
 with open(output_file, 'w') as f:
-    f.write("Perturbation [m], Discrete [Hz/m] \n")
+    f.write("Perturbation [%], delta omega [Hz/m] \n")
     for p, deriv in zip(perturbations, discrete_shape_derivatives):
         f.write(f"{p}, {deriv.real}\n")

@@ -1,4 +1,4 @@
-Perturbation [m], Discrete Real Part [Hz/m], Discrete Imaginary Part [Hz/m] 
+Perturbation [m], delta omega Real Part [Hz/m], delta omega Imaginary Part [Hz/m] 
 1e-06, 0.735876888128131, 0.001909481904010909
 1.4758620689655174e-05, 10.846834308818407, 0.028147632586956434
 2.8517241379310347e-05, 20.9329244456722, 0.05432460868949223
