@@ -49,7 +49,7 @@ class TestCase:
         # test case parameters
         self.degree = self.par.degree
         self.perturbation = self.par.perturbation
-        self.frequ = self.par.frequ
+        self.target = self.par.frequ
         self.boundary_conditions = self.par.boundary_conditions
         self.homogeneous_case = hom_case # fast change between homogeneous and inhomogeneous case
         # initialize input/output values for homogeneous or inhomogeneous case
@@ -200,7 +200,7 @@ class TestCase:
     def solve_eigenvalue_problem(self):
         logging.info("\n--- COMPUTING EIGENSOLUTION ---") 
         # unit of target: ([Hz])*2*pi = [rad/s] 
-        target = (self.frequ)*2*np.pi
+        target = (self.target)*2*np.pi
         logging.info(f"---> \033[1mTarget\033[0m: {target.real:.2f}  {target.imag:.2f}j")
         try:
             # direct problem
@@ -416,10 +416,10 @@ class TestCase:
         logging.info(f"---> \033[1mDimensions =\033[0m {self.length}m, {self.height} m")
         logging.info(f"---> \033[1mPolynomial Degree of FEM =\033[0m {self.degree}")
         logging.info(f"---> \033[1mPerturbation Distance =\033[0m {self.perturbation} m")
-        logging.info(f"---> \033[1mTarget =\033[0m {self.frequ} Hz ")
+        logging.info(f"---> \033[1mTarget =\033[0m {self.target} Hz ")
         logging.info(f"---> \033[1mOmega =\033[0m {self.omega_dir.real} + {self.omega_dir.imag}j ({stability})")
-        logging.info(f"---> \033[1m(Frequ) =\033[0m {self.omega_dir.real/-2/np.pi} Hz") # needs negative sign to fit the physical frequency
-        logging.info(f"---> \033[1m(Growth Rate) =\033[0m {self.omega_dir.imag/2/np.pi} 1/s")
+        logging.info(f"---> \033[1m(Physical Frequency) =\033[0m {self.omega_dir.real/-2/np.pi} Hz") # needs negative sign to fit the physical frequency
+        logging.info(f"---> \033[1m(Physical Growth Rate) =\033[0m {self.omega_dir.imag/2/np.pi} 1/s")
         #logging.info(f"---> \033[1mEigenfrequency =\033[0m {round(self.omega_dir.real/2/np.pi,4)} + {round(self.omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
         logging.info(f"---> \033[1m{self.type.capitalize()} Shape Derivative =\033[0m {round(self.derivative.real/2/np.pi,8)} + {round(self.derivative.imag/2/np.pi,8)}j")
         print("Total Execution Time: ", datetime.datetime.now()-self.start_time)
