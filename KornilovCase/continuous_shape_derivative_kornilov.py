@@ -17,6 +17,6 @@ Kornilov.solve_eigenvalue_problem()
 # optional for testing
 #Kornilov.compute_residual()
 #Kornilov.write_input_functions()
-Kornilov.calculate_continuous_derivative("upper plenum")
+Kornilov.calculate_continuous_derivative("inlet")
 Kornilov.log()
 gmsh.finalize() # close the gmsh session

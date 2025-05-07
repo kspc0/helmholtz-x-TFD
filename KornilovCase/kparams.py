@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 # mesh parameters
-mesh_resolution = 0.4e-3 # specify mesh resolution
+mesh_resolution = 0.3e-3 # specify mesh resolution
 mesh_refinement_factor = 2 # specify mesh refinement factor
 length = 4e-3 # [m] length of the plenum
 height = 2.5e-3 # [m] height of the plenum

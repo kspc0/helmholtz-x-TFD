@@ -279,9 +279,9 @@ class TestCase:
         elif pert_method == "x": # change in inlet direction
             logging.info("- perturbation method: x-direction")
             for i in range(len(xcoords)):
-                if xcoords[i] < -self.length/2:
+                if xcoords[i] < 1.1e-3:
                     plenum_node_indices.append(i)
-            xcoords[plenum_node_indices] += (xcoords[plenum_node_indices]+self.length/2) / (self.length/2+self.slit) * self.perturbation
+            xcoords[plenum_node_indices] += (xcoords[plenum_node_indices]-self.length-self.offset) / (self.length) * self.perturbation
             perturbed_node_coordinates[0::3] = xcoords
         else:
             logging.error("Warning: unknown perturbation method")
@@ -293,8 +293,8 @@ class TestCase:
             gmsh.model.setCoordinates(self.p2, self.offset, self.perturbation + self.height, 0)
             gmsh.model.setCoordinates(self.p3, self.offset+self.length, self.perturbation + self.height, 0)
         elif pert_method == "x":
-            gmsh.model.setCoordinates(self.p1, -self.perturbation-self.length-self.slit, 0, 0)
-            gmsh.model.setCoordinates(self.p2, -self.perturbation-self.length-self.slit, self.height, 0)
+            gmsh.model.setCoordinates(self.p1, -self.perturbation+self.offset, 0, 0)
+            gmsh.model.setCoordinates(self.p2, -self.perturbation+self.offset, self.height, 0)
         # optionally launch GUI to see the results
         # if '-nopopup' not in sys.argv:
         #   gmsh.fltk.run()
