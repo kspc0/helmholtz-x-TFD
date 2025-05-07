@@ -4,16 +4,15 @@ import os
 
 # mesh parameters
 mesh_resolution = 0.4e-3 # specify mesh resolution
-mesh_refinement_factor = 1 # specify mesh refinement factor
-length = 10e-3 # [m] length of the plenum
+mesh_refinement_factor = 2 # specify mesh refinement factor
+length = 4e-3 # [m] length of the plenum
 height = 2.5e-3 # [m] height of the plenum
 
 # eigenvalue problem parameters
 degree = 2 # degree of FEM polynomials
-frequ = -5000 # [Hz] where to expect first mode (helmholtz requires negative frequency)
+frequ = -10000 # [Hz] where to expect first mode (helmholtz requires negative frequency)
 
 perturbation = 0.00001 # [m] perturbation distance
-homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 # set boundary conditions
 boundary_conditions =  {1:  {'Neumann'}, # inlet
                         2:  {'Dirichlet'}, # outlet
@@ -50,8 +49,8 @@ s2 = np.loadtxt(path+'/FTFMatrices/s2.csv', delimiter=',') # B
 s3 = np.loadtxt(path+'/FTFMatrices/s3.csv', delimiter=',') # C
 s4 = np.array([[0]]) # D
 # flame positioning
-x_f = np.array([13e-3, 0.0, 0.0])  # [m] heat release rate function location
+x_f = np.array([8e-3, 0.0, 0.0])  # [m] heat release rate function location
 a_f = 0.5e-3 # [m] thickness of flame
 # reference point coordinates
-x_r = np.array([5e-3, 0., 0.])  # [m] measurement function location
+x_r = np.array([2e-3, 0., 0.])  # [m] measurement function location
 a_r = 0.5e-3 # [m] thickness of reference

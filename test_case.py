@@ -66,17 +66,26 @@ class TestCase:
         gmsh.initialize() # start the gmsh session
         gmsh.option.setNumber('General.Terminal', 0) # disable terminal output
         gmsh.model.add(self.name) # add the model name
-        self.slit_height = 1e-3 # height of the slit
+        self.offset = 1e-3 # positive shift of the geometry in x direction to prevent negative coordinates
+        self.slit = 1e-3 # measure of the slit
         self.combustion_chamber_height = 2.5e-3 # height of the combustion chamber
         # locate the points of the 2D geometry: [m]
-        p1 = gmsh.model.geo.addPoint(0, 0, 0, self.mesh_resolution)  
-        p2 = gmsh.model.geo.addPoint(0, self.height, 0, self.mesh_resolution)
-        p3 = gmsh.model.geo.addPoint(self.length, self.height, 0, self.mesh_resolution)
-        p4 = gmsh.model.geo.addPoint(self.length, self.slit_height, 0, self.mesh_resolution/self.mesh_refinement_factor) # refine the mesh at this point
-        p5 = gmsh.model.geo.addPoint(self.length+1e-3, self.slit_height, 0, self.mesh_resolution/self.mesh_refinement_factor)
-        p6 = gmsh.model.geo.addPoint(self.length+1e-3, self.combustion_chamber_height, 0, self.mesh_resolution)
-        p7 = gmsh.model.geo.addPoint(self.length*3, self.combustion_chamber_height, 0, self.mesh_resolution)
-        p8 = gmsh.model.geo.addPoint(self.length*3, 0, 0, self.mesh_resolution)
+        p1 = gmsh.model.geo.addPoint(self.offset, 0, 0, self.mesh_resolution)  
+        p2 = gmsh.model.geo.addPoint(self.offset, self.height, 0, self.mesh_resolution)
+        p3 = gmsh.model.geo.addPoint(self.offset+self.length, self.height, 0, self.mesh_resolution)
+        p4 = gmsh.model.geo.addPoint(self.offset+self.length, self.slit, 0, self.mesh_resolution/self.mesh_refinement_factor)
+        p5 = gmsh.model.geo.addPoint(self.offset+self.length+self.slit, self.slit, 0, self.mesh_resolution/self.mesh_refinement_factor)
+        p6 = gmsh.model.geo.addPoint(self.offset+self.length+self.slit, self.combustion_chamber_height, 0, self.mesh_resolution)
+        p7 = gmsh.model.geo.addPoint(self.offset+self.length*3+self.slit, self.combustion_chamber_height, 0, self.mesh_resolution)
+        p8 = gmsh.model.geo.addPoint(self.offset+self.length*3+self.slit, 0, 0, self.mesh_resolution)
+        # p1 = gmsh.model.geo.addPoint(-self.length-self.slit, 0, 0, self.mesh_resolution)  
+        # p2 = gmsh.model.geo.addPoint(-self.length-self.slit, self.height, 0, self.mesh_resolution)
+        # p3 = gmsh.model.geo.addPoint(-self.slit, self.height, 0, self.mesh_resolution)
+        # p4 = gmsh.model.geo.addPoint(-self.slit, self.slit, 0, self.mesh_resolution/self.mesh_refinement_factor)
+        # p5 = gmsh.model.geo.addPoint(0, self.slit, 0, self.mesh_resolution/self.mesh_refinement_factor)
+        # p6 = gmsh.model.geo.addPoint(0, self.combustion_chamber_height, 0, self.mesh_resolution)
+        # p7 = gmsh.model.geo.addPoint(self.length*2, self.combustion_chamber_height, 0, self.mesh_resolution)
+        # p8 = gmsh.model.geo.addPoint(self.length*2, 0, 0, self.mesh_resolution)
         # create outlines by connecting points
         l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
         l2 = gmsh.model.geo.addLine(p2, p3) # upper plenum wall
@@ -260,7 +269,7 @@ class TestCase:
             # or have x coordinate of 10mm and y coordinate greater than 1mm
             # these are all the points in the plenum without the slit entry
             for i in range(len(xcoords)):
-                if (xcoords[i] < self.length) or (xcoords[i] == self.length and ycoords[i] > self.slit_height):
+                if xcoords[i] <= self.offset+self.length:
                     plenum_node_indices.append(i) # store the index of the plenum nodes in this array
             # perturb the chosen mesh points slightly in y direction
             # perturbation is percent based on the y-coordinate
@@ -270,9 +279,9 @@ class TestCase:
         elif pert_method == "x": # change in inlet direction
             logging.info("- perturbation method: x-direction")
             for i in range(len(xcoords)):
-                if xcoords[i] < self.length:
+                if xcoords[i] < -self.length/2:
                     plenum_node_indices.append(i)
-            xcoords[plenum_node_indices] += (xcoords[plenum_node_indices]-self.length) / self.length * self.perturbation
+            xcoords[plenum_node_indices] += (xcoords[plenum_node_indices]+self.length/2) / (self.length/2+self.slit) * self.perturbation
             perturbed_node_coordinates[0::3] = xcoords
         else:
             logging.error("Warning: unknown perturbation method")
@@ -281,11 +290,11 @@ class TestCase:
             gmsh.model.mesh.setNode(tag, new_coords, [])
         # update point positions
         if pert_method == "y": 
-            gmsh.model.setCoordinates(self.p2, 0, self.perturbation + self.height, 0)
-            gmsh.model.setCoordinates(self.p3, self.length, self.perturbation + self.height, 0)
+            gmsh.model.setCoordinates(self.p2, self.offset, self.perturbation + self.height, 0)
+            gmsh.model.setCoordinates(self.p3, self.offset+self.length, self.perturbation + self.height, 0)
         elif pert_method == "x":
-            gmsh.model.setCoordinates(self.p1, -self.perturbation, 0, 0)
-            gmsh.model.setCoordinates(self.p2, -self.perturbation, self.height, 0)
+            gmsh.model.setCoordinates(self.p1, -self.perturbation-self.length-self.slit, 0, 0)
+            gmsh.model.setCoordinates(self.p2, -self.perturbation-self.length-self.slit, self.height, 0)
         # optionally launch GUI to see the results
         # if '-nopopup' not in sys.argv:
         #   gmsh.fltk.run()
@@ -434,7 +443,7 @@ class TestCase:
         T_func = dist_params.step_function(self.mesh, self.par.x_f, self.par.T_in, self.par.T_out)
         c_func = sound_speed(T_func)
         # displacement vector for the continuous shape derivative calculation
-        V_ffd = ffd_displacement_vector_full_border(self.MeshObject, 5, [0,1], deg=1)
+        V_ffd = ffd_displacement_vector_full_border(self.MeshObject, 1, [-1,0], deg=1)
         # save the functions in the InputFunctions directory as .xdmf files used to examine with paraview  
         xdmf_writer("InputFunctions/rho", self.mesh, rho_func)
         xdmf_writer("InputFunctions/w", self.mesh, w_func)
