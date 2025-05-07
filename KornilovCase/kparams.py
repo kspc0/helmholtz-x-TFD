@@ -13,7 +13,6 @@ degree = 2 # degree of FEM polynomials
 frequ = -5000 # [Hz] where to expect first mode (helmholtz requires negative frequency)
 
 perturbation = 0.00001 # [m] perturbation distance
-homogeneous_case = False # True for homogeneous case, False for inhomogeneous case
 # set boundary conditions
 boundary_conditions =  {1:  {'Neumann'}, # inlet
                         2:  {'Dirichlet'}, # outlet
