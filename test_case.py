@@ -279,7 +279,7 @@ class TestCase:
         elif pert_method == "x": # change in inlet direction
             logging.info("- perturbation method: x-direction")
             for i in range(len(xcoords)):
-                if xcoords[i] < 1.1e-3:
+                if xcoords[i] < 1.5e-3:
                     plenum_node_indices.append(i)
             xcoords[plenum_node_indices] += (xcoords[plenum_node_indices]-self.length-self.offset) / (self.length) * self.perturbation
             perturbed_node_coordinates[0::3] = xcoords

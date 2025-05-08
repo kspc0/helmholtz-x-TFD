@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 # mesh parameters
-mesh_resolution = 0.3e-3 # specify mesh resolution
+mesh_resolution = 0.2e-3 # specify mesh resolution
 mesh_refinement_factor = 2 # specify mesh refinement factor
 length = 4e-3 # [m] length of the plenum
 height = 2.5e-3 # [m] height of the plenum
@@ -12,7 +12,7 @@ height = 2.5e-3 # [m] height of the plenum
 degree = 2 # degree of FEM polynomials
 frequ = -10000 # [Hz] where to expect first mode (helmholtz requires negative frequency)
 
-perturbation = 0.00001 # [m] perturbation distance
+perturbation = 0.0001 # [m] perturbation distance
 # set boundary conditions
 boundary_conditions =  {1:  {'Neumann'}, # inlet
                         2:  {'Dirichlet'}, # outlet
@@ -52,5 +52,5 @@ s4 = np.array([[0]]) # D
 x_f = np.array([8e-3, 0.0, 0.0])  # [m] heat release rate function location
 a_f = 0.5e-3 # [m] thickness of flame
 # reference point coordinates
-x_r = np.array([2e-3, 0., 0.])  # [m] measurement function location
+x_r = np.array([3e-3, 0., 0.])  # [m] measurement function location
 a_r = 0.5e-3 # [m] thickness of reference
