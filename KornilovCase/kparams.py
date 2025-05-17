@@ -44,9 +44,14 @@ q_0 = 2577.16 # [W] heat flux density: integrated value dQ from open foam
 # set path to read FTF state space matrices
 path = os.path.dirname(os.path.abspath(__file__))
 # load the state-space matrices from data saved as csv tables
-S1 = np.loadtxt(path+'/FTFMatrices/S1.csv', delimiter=',') # A
-s2 = np.loadtxt(path+'/FTFMatrices/s2.csv', delimiter=',') # B
-s3 = np.loadtxt(path+'/FTFMatrices/s3.csv', delimiter=',') # C
+#S1 = np.loadtxt(path+'/FTFMatrices/S1.csv', delimiter=',') # A
+#s2 = np.loadtxt(path+'/FTFMatrices/s2.csv', delimiter=',') # B
+#s3 = np.loadtxt(path+'/FTFMatrices/s3.csv', delimiter=',') # C
+# or the dynX FTF:
+S1 = np.loadtxt(path+'/FTFMatrices/FTFDynX/S1.csv', delimiter=',') # A
+s2 = np.loadtxt(path+'/FTFMatrices/FTFDynX/s2.csv', delimiter=',') # B
+s3 = np.loadtxt(path+'/FTFMatrices/FTFDynX/s3.csv', delimiter=',') # C
+
 s4 = np.array([[0]]) # D
 # flame positioning
 x_f = np.array([8e-3, 0.0, 0.0])  # [m] heat release rate function location

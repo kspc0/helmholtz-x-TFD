@@ -9,7 +9,7 @@ logger.setLevel(logging.INFO)  # Set the logging level
 # set variables to load and save files
 path = os.path.dirname(os.path.abspath(__file__))
 
-Kornilov = test_case.TestCase("/KornilovCase" ,'continuous', False ,path)
+Kornilov = test_case.TestCase("/KornilovCase" ,'continuous', False, path)
 # compute test case
 Kornilov.create_kornilov_mesh()
 Kornilov.assemble_matrices()
