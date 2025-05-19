@@ -22,6 +22,7 @@ RijkeTube/InputFunctions
 KornilovCase/Results
 KornilovCase/Meshes
 KornilovCase/InputFunctions
+Figures/Images
 # except this specific file
 !Figures/plot_fig6.pvsm
 !Figures/plot_fig9.pvsm
