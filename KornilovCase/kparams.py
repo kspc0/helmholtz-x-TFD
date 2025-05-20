@@ -2,18 +2,18 @@ from math import sqrt
 import numpy as np
 import os
 
-factor = 40
+factor = 45
 # mesh parameters
-mesh_resolution = (0.2e-3)*factor # specify mesh resolution
+mesh_resolution = (0.2e-3)*factor/10 # specify mesh resolution
 mesh_refinement_factor = 2 # specify mesh refinement factor
-length = (4e-3)*factor # [m] length of the plenum
-height = (2.5e-3)*factor # [m] height of the plenum
+# length = (4e-3)*factor # [m] length of the plenum
+# height = (2.5e-3)*factor # [m] height of the plenum
 
 # eigenvalue problem parameters
 degree = 2 # degree of FEM polynomials
 frequ = -200 # [Hz] where to expect first mode (helmholtz requires negative frequency)
 
-perturbation = 0.0001*factor # [m] perturbation distance
+perturbation = 0.0001 # [m] perturbation distance
 # set boundary conditions
 boundary_conditions =  {1:  {'Neumann'}, # inlet
                         2:  {'Dirichlet'}, # outlet
@@ -51,7 +51,7 @@ s3 = np.loadtxt(path+'/FTFMatrices/s3.csv', delimiter=',') # C
 s4 = np.array([[0]]) # D
 # flame positioning
 x_f = np.array([(8e-3)*factor, 0.0, 0.0])  # [m] heat release rate function location
-a_f = 0.5e-3 # [m] thickness of flame
+a_f = (0.5e-3)*factor # [m] thickness of flame
 # reference point coordinates
 x_r = np.array([(3e-3)*factor, 0., 0.])  # [m] measurement function location
-a_r = 0.5e-3 # [m] thickness of reference
+a_r = (0.5e-3)*factor # [m] thickness of reference
