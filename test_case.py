@@ -66,9 +66,10 @@ class TestCase:
         gmsh.initialize() # start the gmsh session
         gmsh.option.setNumber('General.Terminal', 0) # disable terminal output
         gmsh.model.add(self.name) # add the model name
-        self.offset = 1e-3 # positive shift of the geometry in x direction to prevent negative coordinates
-        self.slit = 1e-3 # measure of the slit
-        self.combustion_chamber_height = 2.5e-3 # height of the combustion chamber
+        factor = 40        
+        self.offset = 0#(1e-3)*factor # positive shift of the geometry in x direction to prevent negative coordinates
+        self.slit = (1e-3)*factor # measure of the slit
+        self.combustion_chamber_height = (2.5e-3)*factor # height of the combustion chamber
         # locate the points of the 2D geometry: [m]
         p1 = gmsh.model.geo.addPoint(self.offset, 0, 0, self.mesh_resolution)  
         p2 = gmsh.model.geo.addPoint(self.offset, self.height, 0, self.mesh_resolution)

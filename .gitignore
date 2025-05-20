@@ -15,6 +15,7 @@ __pycache__/
 # Folders
 helmholtz_x.egg-info/
 Plots/
+.vscode/
 # data directories
 RijkeTube/Results
 RijkeTube/Meshes
