@@ -22,13 +22,13 @@ continuous_shape_derivatives = []
 
 analytic_shape_derivatives = []
 
-tube_length_list = np.linspace(0.9, 1.1, num=11) # 11 steps from 0.9m to 1.1m duct length
+tube_length_list = np.array([0.9, 1, 1.1]) #np.linspace(0.9, 1.1, num=3) # 3 steps from 0.9m, 1.0 and 1.1m duct length
 frequ_list = -RijkeTube.rparams.c_amb/4/tube_length_list # calculate expected frequencies for Neumann-Dirichlet boundary conditions
 # calculate analytic shape derivatives (positive because targeting negative frequencies)
 analytic_shape_derivatives = RijkeTube.rparams.c_amb/4/(tube_length_list)**2
 
 # set specific parameters for acoustic duct
-specific_mesh_resolution = np.linspace(0.2,0.01,10) # specify mesh resolution
+specific_mesh_resolution = np.linspace(0.1,0.008,10) # specify mesh resolution
 type = None # type of the test case does not matter because no logging is done
 
 print("mesh resolution: ", specific_mesh_resolution)
@@ -58,17 +58,27 @@ for i in range(10):
         # delete object to free memory and restart next run
         del Rijke_Tube
 
+# reorder the arrays
+con1 = np.array(continuous_shape_derivatives[0::3])
+con2 = np.array(continuous_shape_derivatives[1::3])
+con3 = np.array(continuous_shape_derivatives[2::3])
+dis1 = np.array(discrete_shape_derivatives[0::3])
+dis2 = np.array(discrete_shape_derivatives[1::3])
+dis3 = np.array(discrete_shape_derivatives[2::3])
+
+contin = np.array([con1, con2, con3])
+disc = np.array([dis1, dis2, dis3])
 
 # save the real and imaginary derivatives along with the perturbations to a text file
 output_file = os.path.join(path, 'data_fig12.txt')
 with open(output_file, 'w') as f:
-    f.write("Duct Length [m], Frequency [Hz], Analytic [Hz/m], Continuous [Hz/m], Discrete [Hz/m] \n")
-    n = max(len(discrete_shape_derivatives), len(continuous_shape_derivatives))
-    # when there is no duct lengths left, start looping to save all data
-    for i in range(n):
-        duc = tube_length_list[i % len(tube_length_list)]
-        fre = frequ_list[i % len(frequ_list)]
-        ana = analytic_shape_derivatives[i % len(analytic_shape_derivatives)]
-        con = continuous_shape_derivatives[i]
-        dis = discrete_shape_derivatives[i]
-        f.write(f"{duc}, {fre}, {ana}, {con}, {dis}\n")
+    f.write("Duct Length [m], Mesh Resolution [-], Frequency [Hz], Analytic [Hz/m], Continuous [Hz/m], Discrete [Hz/m] \n")
+    for sets in range(len(tube_length_list)):
+        duc = tube_length_list[sets]
+        fre = frequ_list[sets]
+        ana = analytic_shape_derivatives[sets]
+        for resolution in range(len(specific_mesh_resolution)):
+            mes = specific_mesh_resolution[resolution]
+            con = contin[sets, resolution]
+            dis = disc[sets, resolution]
+            f.write(f"{duc}, {mes:.3f}, {fre}, {ana}, {con}, {dis}\n")
