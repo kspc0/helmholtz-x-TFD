@@ -31,7 +31,7 @@ for perturbation in perturbations:
     Rijke_Tube.perturb_rijke_tube_mesh()
     Rijke_Tube.calculate_discrete_derivative()
     # save the calculated shape derivative
-    discrete_shape_derivatives.append(Rijke_Tube.derivative/2/np.pi*Rijke_Tube.perturbation) # cancel out perturbation factor
+    discrete_shape_derivatives.append(Rijke_Tube.derivative/-2/np.pi*Rijke_Tube.perturbation) # cancel out perturbation factor
 gmsh.finalize() # close the gmsh session
 
 # save derivatives along with the perturbations to a text file
