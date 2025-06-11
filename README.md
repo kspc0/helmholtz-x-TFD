@@ -8,7 +8,7 @@ Modification of the [helmholtz-x](https://github.com/ekremekc/helmholtz-x/tree/m
 Structure the repository:  
 - /helmholtz_x: contains a slightly modified version of the HelmholtzX toolbox
 - /RijkeTube: 2D Rijke tube geometry test case
-- /KornilovCase: Kornilov test case geometry test case
+- /KornilovCase: Kornilov geometry test case
 - /Figures: building datasets and plotting figures and results
 #### Subfolders of Test Cases
 Use paraview to analyse .xdmf files within:
