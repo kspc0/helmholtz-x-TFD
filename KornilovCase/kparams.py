@@ -11,9 +11,9 @@ mesh_refinement_factor = 2 # specify mesh refinement factor
 
 # eigenvalue problem parameters
 degree = 2 # degree of FEM polynomials
-frequ = -350 # [Hz] where to expect first mode (helmholtz requires negative frequency)
+frequ = -800 # [Hz] where to expect first mode (helmholtz requires negative frequency)
 
-perturbation = 0.0001 # [m] perturbation distance
+perturbation = 0.01 # [m] perturbation distance
 # set boundary conditions
 boundary_conditions =  {1:  {'Neumann'}, # inlet
                         2:  {'Dirichlet'}, # outlet
@@ -45,13 +45,13 @@ q_0 = 2577.16 # [W] heat flux density: integrated value dQ from open foam
 # set path to read FTF state space matrices
 path = os.path.dirname(os.path.abspath(__file__))
 # load the state-space matrices from data saved as csv tables
-S1 = np.loadtxt(path+'/FTFMatrices/FTFLifted/S1.csv', delimiter=',') # A
-s2 = np.loadtxt(path+'/FTFMatrices/FTFLifted/s2.csv', delimiter=',') # B
-s3 = np.loadtxt(path+'/FTFMatrices/FTFLifted/s3.csv', delimiter=',') # C
+S1 = np.loadtxt(path+'/FTFMatrices/FTFLifted/S1_fine.csv', delimiter=',') # A
+s2 = np.loadtxt(path+'/FTFMatrices/FTFLifted/s2_fine.csv', delimiter=',') # B
+s3 = np.loadtxt(path+'/FTFMatrices/FTFLifted/s3_fine.csv', delimiter=',') # C
 s4 = np.array([[0]]) # D
 # flame positioning
-x_f = np.array([0.203, 0.0, 0.0])  # [m] heat release rate function location
+x_f = np.array([0.082, 0.0, 0.0])  # [m] heat release rate function location
 a_f = 0.5e-3 # [m] thickness of flame
 # reference point coordinates
-x_r = np.array([0.195, 0., 0.])  # [m] measurement function location
+x_r = np.array([0.075, 0., 0.])  # [m] measurement function location
 a_r = 0.5e-3 # [m] thickness of reference

@@ -66,9 +66,9 @@ class TestCase:
         gmsh.initialize() # start the gmsh session
         gmsh.option.setNumber('General.Terminal', 0) # disable terminal output
         gmsh.model.add(self.name) # add the model name
-        self.plenum_length = 0.2
-        self.chamber_length = 0.35
-        self.plenum_height = 2.5e-3 # height of the plenum
+        self.plenum_length = 0.08-0.001
+        self.chamber_length = 0.14+0.001
+        self.plenum_height = 0.0025 # height of the plenum
         self.slit_height = 1e-3 # measure of the slit
         self.slit_length = 1e-3 # measure of the slit
         self.combustion_chamber_height = 2.5e-3 # height of the combustion chamber
@@ -129,6 +129,8 @@ class TestCase:
         self.p1 = p1
         self.p2 = p2
         self.p3 = p3
+        self.p7 = p7
+        self.p8 = p8
 
     # build the mesh of the rijke tube case
     def create_rijke_tube_mesh(self):
@@ -220,7 +222,7 @@ class TestCase:
             self.D.assemble_submatrices('direct') # assemble direct flame matrix
             # calculate the eigenvalues and eigenvectors
             omega_dir, p_dir, p_adj = newtonSolver(self.matrices, self.degree, self.D, target, nev=1,
-                                                    i=0, tol=1e-2, maxiter=70, problem_type='direct', print_results= False)
+                                                    i=0, tol=1e-4, maxiter=100, problem_type='direct', print_results= False)
             #print("- omega_dir:", omega_dir)
             omega_adj = np.conj(omega_dir) # conjugate eigenvalue
         except IndexError:
@@ -282,9 +284,9 @@ class TestCase:
         elif pert_method == "x": # change in inlet direction
             logging.info("- perturbation method: x-direction")
             for i in range(len(xcoords)):
-                if xcoords[i] < 1.5e-3:
+                if xcoords[i] > 0.09: # not plenum! instead part of combustion chamber
                     plenum_node_indices.append(i)
-            xcoords[plenum_node_indices] += (xcoords[plenum_node_indices]-self.plenum_length) / (self.plenum_length) * self.perturbation
+            xcoords[plenum_node_indices] = xcoords[plenum_node_indices]*1.01
             perturbed_node_coordinates[0::3] = xcoords
         else:
             logging.error("Warning: unknown perturbation method")
@@ -296,8 +298,9 @@ class TestCase:
             gmsh.model.setCoordinates(self.p2, 0, self.perturbation + self.plenum_height, 0)
             gmsh.model.setCoordinates(self.p3, self.plenum_length, self.perturbation + self.plenum_height, 0)
         elif pert_method == "x":
-            gmsh.model.setCoordinates(self.p1, -self.perturbation, 0, 0)
-            gmsh.model.setCoordinates(self.p2, -self.perturbation, self.plenum_height, 0)
+            total_length = self.plenum_length + self.chamber_length + self.slit_length
+            gmsh.model.setCoordinates(self.p7, total_length*1.01, self.combustion_chamber_height, 0)
+            gmsh.model.setCoordinates(self.p8, total_length*1.01, 0, 0)
         # optionally launch GUI to see the results
         # if '-nopopup' not in sys.argv:
         #   gmsh.fltk.run()

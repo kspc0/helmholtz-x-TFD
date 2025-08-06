@@ -16,7 +16,7 @@ Kornilov.assemble_matrices()
 Kornilov.solve_eigenvalue_problem()
 # optional for testing
 #Kornilov.compute_residual()
-#Kornilov.write_input_functions()
+Kornilov.write_input_functions()
 Kornilov.perturb_kornilov_mesh("x")
 Kornilov.calculate_discrete_derivative() # so far only linear implemented
 Kornilov.log()
