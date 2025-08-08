@@ -16,7 +16,7 @@ Kornilov.assemble_matrices()
 Kornilov.solve_eigenvalue_problem()
 # optional for testing
 #Kornilov.compute_residual()
-#Kornilov.write_input_functions()
-Kornilov.calculate_continuous_derivative("inlet")
+Kornilov.write_input_functions()
+Kornilov.calculate_continuous_derivative("outlet")
 Kornilov.log()
 gmsh.finalize() # close the gmsh session

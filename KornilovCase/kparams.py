@@ -2,18 +2,20 @@ from math import sqrt
 import numpy as np
 import os
 
-factor = 45
 # mesh parameters
-mesh_resolution = (0.2e-3)*factor/15 # specify mesh resolution
+mesh_resolution = (0.2e-3)*3 # specify mesh resolution
 mesh_refinement_factor = 2 # specify mesh refinement factor
-# length = (4e-3)*factor # [m] length of the plenum
-# height = (2.5e-3)*factor # [m] height of the plenum
+
+chamber_length = 0.14+0.001 # [m] length of the combustion chamber
+plenum_length = 0.08-0.001 # [m] length of the plenum
+slit = 0.001 # [m] slit width and height
+height = 0.0025 # [m] height of the plenum
 
 # eigenvalue problem parameters
 degree = 2 # degree of FEM polynomials
 frequ = -800 # [Hz] where to expect first mode (helmholtz requires negative frequency)
 
-perturbation = 0.01 # [m] perturbation distance
+perturbation = 0.0022 # [m] perturbation distance
 # set boundary conditions
 boundary_conditions =  {1:  {'Neumann'}, # inlet
                         2:  {'Dirichlet'}, # outlet

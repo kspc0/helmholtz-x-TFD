@@ -44,8 +44,10 @@ class TestCase:
         # main parameters of geometry
         self.mesh_resolution = self.par.mesh_resolution
         self.mesh_refinement_factor = self.par.mesh_refinement_factor
-        #self.length = self.par.length
-        #self.height = self.par.height
+        self.chamber_length = self.par.chamber_length
+        self.plenum_length = self.par.plenum_length
+        self.slit = self.par.slit
+        self.height = self.par.height
         # test case parameters
         self.degree = self.par.degree
         self.perturbation = self.par.perturbation
@@ -66,21 +68,21 @@ class TestCase:
         gmsh.initialize() # start the gmsh session
         gmsh.option.setNumber('General.Terminal', 0) # disable terminal output
         gmsh.model.add(self.name) # add the model name
-        self.plenum_length = 0.08-0.001
-        self.chamber_length = 0.14+0.001
-        self.plenum_height = 0.0025 # height of the plenum
-        self.slit_height = 1e-3 # measure of the slit
-        self.slit_length = 1e-3 # measure of the slit
-        self.combustion_chamber_height = 2.5e-3 # height of the combustion chamber
+        plenum_length = self.plenum_length
+        chamber_length = self.chamber_length
+        plenum_height = self.height # height of the plenum
+        slit_height = self.slit # measure of the slit
+        slit_length = self.slit # measure of the slit
+        combustion_chamber_height = self.height # height of the combustion chamber
         # locate the points of the 2D geometry: [m]
         p1 = gmsh.model.geo.addPoint(0, 0, 0, self.mesh_resolution)  
-        p2 = gmsh.model.geo.addPoint(0, self.plenum_height, 0, self.mesh_resolution)
-        p3 = gmsh.model.geo.addPoint(self.plenum_length, self.plenum_height, 0, self.mesh_resolution)
-        p4 = gmsh.model.geo.addPoint(self.plenum_length, self.slit_height, 0, self.mesh_resolution/self.mesh_refinement_factor)
-        p5 = gmsh.model.geo.addPoint(self.plenum_length + self.slit_length, self.slit_height, 0, self.mesh_resolution/self.mesh_refinement_factor)
-        p6 = gmsh.model.geo.addPoint(self.plenum_length + self.slit_length, self.combustion_chamber_height, 0, self.mesh_resolution)
-        p7 = gmsh.model.geo.addPoint(self.plenum_length + self.slit_length + self.chamber_length, self.combustion_chamber_height, 0, self.mesh_resolution)
-        p8 = gmsh.model.geo.addPoint(self.plenum_length + self.slit_length + self.chamber_length, 0, 0, self.mesh_resolution)
+        p2 = gmsh.model.geo.addPoint(0, plenum_height, 0, self.mesh_resolution)
+        p3 = gmsh.model.geo.addPoint(plenum_length, plenum_height, 0, self.mesh_resolution)
+        p4 = gmsh.model.geo.addPoint(plenum_length, slit_height, 0, self.mesh_resolution/self.mesh_refinement_factor)
+        p5 = gmsh.model.geo.addPoint(plenum_length + slit_length, slit_height, 0, self.mesh_resolution/self.mesh_refinement_factor)
+        p6 = gmsh.model.geo.addPoint(plenum_length + slit_length, combustion_chamber_height, 0, self.mesh_resolution)
+        p7 = gmsh.model.geo.addPoint(plenum_length + slit_length + chamber_length, combustion_chamber_height, 0, self.mesh_resolution)
+        p8 = gmsh.model.geo.addPoint(plenum_length + slit_length + chamber_length, 0, 0, self.mesh_resolution)
         # p1 = gmsh.model.geo.addPoint(-self.length-self.slit, 0, 0, self.mesh_resolution)  
         # p2 = gmsh.model.geo.addPoint(-self.length-self.slit, self.height, 0, self.mesh_resolution)
         # p3 = gmsh.model.geo.addPoint(-self.slit, self.height, 0, self.mesh_resolution)
@@ -286,7 +288,7 @@ class TestCase:
             for i in range(len(xcoords)):
                 if xcoords[i] > 0.09: # not plenum! instead part of combustion chamber
                     plenum_node_indices.append(i)
-            xcoords[plenum_node_indices] = xcoords[plenum_node_indices]*1.01
+            xcoords[plenum_node_indices] += self.perturbation*(xcoords[plenum_node_indices]-0.09)/(0.13)
             perturbed_node_coordinates[0::3] = xcoords
         else:
             logging.error("Warning: unknown perturbation method")
@@ -295,12 +297,12 @@ class TestCase:
             gmsh.model.mesh.setNode(tag, new_coords, [])
         # update point positions
         if pert_method == "y": 
-            gmsh.model.setCoordinates(self.p2, 0, self.perturbation + self.plenum_height, 0)
-            gmsh.model.setCoordinates(self.p3, self.plenum_length, self.perturbation + self.plenum_height, 0)
+            gmsh.model.setCoordinates(self.p2, 0, self.perturbation + self.height, 0)
+            gmsh.model.setCoordinates(self.p3, self.plenum_length, self.perturbation + self.height, 0)
         elif pert_method == "x":
-            total_length = self.plenum_length + self.chamber_length + self.slit_length
-            gmsh.model.setCoordinates(self.p7, total_length*1.01, self.combustion_chamber_height, 0)
-            gmsh.model.setCoordinates(self.p8, total_length*1.01, 0, 0)
+            total_length = self.plenum_length + self.chamber_length + self.slit
+            gmsh.model.setCoordinates(self.p7, total_length+self.perturbation, self.height, 0)
+            gmsh.model.setCoordinates(self.p8, total_length+self.perturbation, 0, 0)
         # optionally launch GUI to see the results
         # if '-nopopup' not in sys.argv:
         #   gmsh.fltk.run()
@@ -428,7 +430,7 @@ class TestCase:
         else:
             stability = 'stable'
         logging.info(f"---> \033[1mMesh Resolution =\033[0m {self.mesh_resolution}")
-        logging.info(f"---> \033[1mDimensions =\033[0m {self.plenum_length}m, {self.plenum_height} m")
+        logging.info(f"---> \033[1mDimensions =\033[0m {self.plenum_length}m, {self.height} m")
         logging.info(f"---> \033[1mPolynomial Degree of FEM =\033[0m {self.degree}")
         logging.info(f"---> \033[1mPerturbation Distance =\033[0m {self.perturbation} m")
         logging.info(f"---> \033[1mTarget =\033[0m {self.target} Hz ")
