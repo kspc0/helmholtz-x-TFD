@@ -20,7 +20,8 @@ for i, name in zip([1, 2, 3], ["coarse", "medium", "fine"]):
     # set up and solve test case of 2D Rijke Tube
     Rijke_Tube = test_case.TestCase("/RijkeTube", 'discrete', False, parent_path +"/RijkeTube")
     #Rijke_Tube.mesh_resolution = i
-    Rijke_Tube.mesh_refinement_factor = i
+    #Rijke_Tube.mesh_refinement_factor = i
+    Rijke_Tube.mesh_resolution = Rijke_Tube.mesh_resolution / i
     Rijke_Tube.create_rijke_tube_mesh()
     Rijke_Tube.assemble_matrices()
     Rijke_Tube.solve_eigenvalue_problem()

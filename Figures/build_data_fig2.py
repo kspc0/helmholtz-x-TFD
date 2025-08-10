@@ -36,7 +36,7 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
     Rijke_Tube = test_case.TestCase("/RijkeTube", type, True, parent_path + "/RijkeTube")
     # overwrite standard parameters used in rparams.py
     Rijke_Tube.length = tube_length
-    Rijke_Tube.frequ = frequ
+    Rijke_Tube.target = frequ
     Rijke_Tube.mesh_resolution = specific_mesh_resolution
     # set up and solve test case of 2D Rijke Tube
     Rijke_Tube.create_rijke_tube_mesh()

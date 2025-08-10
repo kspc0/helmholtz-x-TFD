@@ -32,7 +32,7 @@ for perturbation in perturbations:
     KornilovCase.perturb_kornilov_mesh("y")
     KornilovCase.calculate_discrete_derivative()
     # save the calculated shape derivative
-    discrete_shape_derivatives.append(KornilovCase.derivative/2/np.pi*KornilovCase.perturbation)
+    discrete_shape_derivatives.append(KornilovCase.derivative/-2/np.pi*KornilovCase.perturbation)
 gmsh.finalize() # close the gmsh session
 
 # extract the discrete shape derivatives as complex numbers

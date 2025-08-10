@@ -20,15 +20,15 @@ discrete_shape_derivatives = []
 continuous_shape_derivatives = []
 eigenvalues = []
 
-plenum_height = np.linspace(2.5e-3, 5e-3, num=4) # 4 steps from 2.5mm to 3mm plenum height
-frequ = -kparams.c_amb/4/kparams.length # calculate expected frequencies for Neumann-Dirichlet boundary conditions
+plenum_height = np.linspace(2.5e-3, 5e-3, num=4) # 4 steps from 2.5mm to 5mm plenum height
+frequ = -kparams.c_amb/4/(kparams.length*3) # calculate expected frequencies for Neumann-Dirichlet boundary conditions
 
 for height in plenum_height:
     print("- iterating for height: ", height)
     KornilovCase = test_case.TestCase("/KornilovCase", type, True, parent_path + "/KornilovCase")
     # overwrite standard parameters used in kparams.py
     KornilovCase.height = height
-    KornilovCase.frequ = frequ
+    KornilovCase.target = frequ
     # set up and solve test case of 2D Rijke Tube
     KornilovCase.create_kornilov_mesh()
     KornilovCase.assemble_matrices()
@@ -49,6 +49,6 @@ real_eigenvalues = [eig.real for eig in eigenvalues]
 # save the real part of eigenvalue and shape derivative along with the perturbations to a text file
 output_file = os.path.join(path, 'data_fig10.txt')
 with open(output_file, 'w') as f:
-    f.write("Plenum Height [m], Eigenvalues [Hz], Discrete [Hz] \n")
+    f.write("Plenum Height [m], Eigenvalues [Hz], Discrete [Hz/m] \n")
     for plen, eig, dis, in zip(plenum_height, real_eigenvalues, real_discrete_shape_derivatives):
         f.write(f"{plen}, {eig}, {dis} \n")
