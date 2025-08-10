@@ -16,7 +16,7 @@ from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed 
 from helmholtz_x.acoustic_matrices import AcousticMatrices # to assemble the acoustic matrices for discrete Helm. EQU
 from helmholtz_x.flame_transfer_function import nTau, stateSpace # to define the flame transfer function
 from helmholtz_x.flame_matrices import DistributedFlameMatrix # to define the flame matrix for discrete Helm. EQU
-from helmholtz_x.eigensolvers import newtonSolver # to solve the system
+from helmholtz_x.eigensolvers import newtonSolver, stability_map # to solve the system
 from helmholtz_x.eigenvectors import normalize_adjoint
 from helmholtz_x.petsc4py_utils import vector_matrix_vector, conjugate, conjugate_function
 from helmholtz_x.shape_derivatives import ShapeDerivativeFullBorder, ffd_displacement_vector_full_border # to calculate shape derivatives
