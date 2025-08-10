@@ -1,5 +1,5 @@
 '''
-Compute Data of Figure 8: Domain of Linearity of Discrete Shape Derivative for Kornilov Case
+Compute Data of Figure 8: Domain of Linearity of Discrete Shape Derivative for instable Kornilov Case
 '''
 
 import os
@@ -22,14 +22,14 @@ KornilovCase.solve_eigenvalue_problem()
 # calculate shape derivatives for different perturbations
 discrete_shape_derivatives = []
 # total height of kornilov case l=2.5e-3m - perturbation should be less than 1/3 of l
-perturbations = np.linspace(1e-6, 4e-4 , num=30)
+perturbations = np.linspace(0.22*1e-6, 0.22*0.1, num=30)
 
 for perturbation in perturbations:
     print("- iterating on perturbation: ", perturbation)
     # set new perturbation distance
     KornilovCase.perturbation = perturbation
     # calculate the shape derivative for this perturbation
-    KornilovCase.perturb_kornilov_mesh("y")
+    KornilovCase.perturb_kornilov_mesh("x")
     KornilovCase.calculate_discrete_derivative()
     # save the calculated shape derivative
     discrete_shape_derivatives.append(KornilovCase.derivative/-2/np.pi*KornilovCase.perturbation)
@@ -39,7 +39,7 @@ gmsh.finalize() # close the gmsh session
 real_discrete_shape_derivatives = [derivative.real for derivative in discrete_shape_derivatives]
 imag_discrete_shape_derivatives = [derivative.imag for derivative in discrete_shape_derivatives]
 # Save the real and imaginary derivatives along with the perturbations to a text file
-output_file = os.path.join(path, 'data_fig8.txt')
+output_file = os.path.join(path, 'data_fig12.txt')
 with open(output_file, 'w') as f:
     f.write("Perturbation [m], delta omega Real Part [Hz/m], delta omega Imaginary Part [Hz/m] \n")
     for p, real, imag in zip(perturbations, real_discrete_shape_derivatives, imag_discrete_shape_derivatives):

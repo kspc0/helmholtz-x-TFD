@@ -30,8 +30,8 @@ for tube_length, frequ in zip(tube_length_list, frequ_list):
     print("- iterating on tube length: ", tube_length)
     Rijke_Tube = test_case.TestCase("/RijkeTube", type, True, parent_path + "/RijkeTube")
     # set different parameters than the standard used in rparams.py
-    Rijke_Tube.length = tube_length
-    Rijke_Tube.frequ = frequ
+    Rijke_Tube.chamber_length = tube_length
+    Rijke_Tube.target = frequ
     # set up and solve test case of 2D Rijke Tube
     Rijke_Tube.create_rijke_tube_mesh()
     Rijke_Tube.assemble_matrices()

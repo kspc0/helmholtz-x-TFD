@@ -1,5 +1,5 @@
 '''
-Compute Data of Figure 7: Shape Optimization with Discrete and Continuous Shape Derivative for Kornilov Case
+Compute Data of Figure 11: Shape Optimization with Discrete and Continuous Shape Derivative for instable Kornilov Case
 '''
 
 import os
@@ -20,15 +20,15 @@ discrete_shape_derivatives = []
 continuous_shape_derivatives = []
 eigenvalues = []
 
-plenum_height = np.linspace(2.5e-3, 3e-3, num=11) # 11 steps from 2.5mm to 3mm plenum height
-frequ = -kparams.c_amb/4/kparams.length # calculate expected frequencies for Neumann-Dirichlet boundary conditions
+chamber_length = np.linspace(0.141, 0.15, num=11) # 11 steps from 14,1cm to 15cm chamber length
+frequ = -800#-kparams.c_amb/4/kparams.length # calculate expected frequencies for Neumann-Dirichlet boundary conditions
 
-for height in plenum_height:
-    print("- running test case with plenum height: ", height)
+for length in chamber_length:
+    print("- running test case with chamber length: ", length)
     KornilovCase = test_case.TestCase("/KornilovCase", type, False, parent_path + "/KornilovCase")
     # overwrite standard parameters used in kparams.py
-    KornilovCase.height = height
-    KornilovCase.frequ = frequ
+    KornilovCase.chamber_length = length
+    KornilovCase.target = frequ
     # set up and solve test case of 2D Rijke Tube
     KornilovCase.create_kornilov_mesh()
     KornilovCase.assemble_matrices()
@@ -36,10 +36,10 @@ for height in plenum_height:
     # save eigenvalue
     eigenvalues.append(KornilovCase.omega_dir/2/np.pi)
     # calculate the continuous shape derivative
-    KornilovCase.calculate_continuous_derivative("upper plenum")
+    KornilovCase.calculate_continuous_derivative("outlet")
     continuous_shape_derivatives.append(KornilovCase.derivative/2/np.pi)
     # calculate the discrete shape derivative
-    KornilovCase.perturb_kornilov_mesh("y")
+    KornilovCase.perturb_kornilov_mesh("x")
     KornilovCase.calculate_discrete_derivative()
     discrete_shape_derivatives.append(KornilovCase.derivative/2/np.pi)
     gmsh.finalize() # close the gmsh session
@@ -47,8 +47,8 @@ for height in plenum_height:
     del KornilovCase
 
 # save the real and imaginary derivatives along with the perturbations to a text file
-output_file = os.path.join(path, 'data_fig7.txt')
+output_file = os.path.join(path, 'data_fig11.txt')
 with open(output_file, 'w') as f:
-    f.write("Plenum Height [m], Eigenvalues [Hz], Continuous [Hz], Discrete [Hz] \n")
-    for plen, eig, con, dis, in zip(plenum_height, eigenvalues, continuous_shape_derivatives, discrete_shape_derivatives):
+    f.write("Chamber Length [m], Eigenvalues [Hz], Continuous [Hz], Discrete [Hz] \n")
+    for plen, eig, con, dis, in zip(chamber_length, eigenvalues, continuous_shape_derivatives, discrete_shape_derivatives):
         f.write(f"{plen}, {eig}, {con}, {dis} \n")

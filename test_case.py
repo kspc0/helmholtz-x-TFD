@@ -16,7 +16,7 @@ from helmholtz_x.parameters_utils import sound_speed # to calculate sound speed 
 from helmholtz_x.acoustic_matrices import AcousticMatrices # to assemble the acoustic matrices for discrete Helm. EQU
 from helmholtz_x.flame_transfer_function import nTau, stateSpace # to define the flame transfer function
 from helmholtz_x.flame_matrices import DistributedFlameMatrix # to define the flame matrix for discrete Helm. EQU
-from helmholtz_x.eigensolvers import newtonSolver, stability_map # to solve the system
+from helmholtz_x.eigensolvers import newtonSolver # to solve the system
 from helmholtz_x.eigenvectors import normalize_adjoint
 from helmholtz_x.petsc4py_utils import vector_matrix_vector, conjugate, conjugate_function
 from helmholtz_x.shape_derivatives import ShapeDerivativeFullBorder, ffd_displacement_vector_full_border # to calculate shape derivatives
@@ -280,7 +280,7 @@ class TestCase:
                     plenum_node_indices.append(i) # store the index of the plenum nodes in this array
             # perturb the chosen mesh points slightly in y direction
             # perturbation is percent based on the y-coordinate
-            ycoords[plenum_node_indices] += ycoords[plenum_node_indices] / self.plenum_height * self.perturbation
+            ycoords[plenum_node_indices] += ycoords[plenum_node_indices] / self.height * self.perturbation
             # update node y coordinates in mesh from the perturbed points and the unperturbed original points
             perturbed_node_coordinates[1::3] = ycoords
         elif pert_method == "x": # change in inlet direction
