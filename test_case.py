@@ -143,10 +143,10 @@ class TestCase:
         # locate the points of the 2D geometry: [m]
         p1 = gmsh.model.geo.addPoint(0, 0, 0, self.mesh_resolution)  
         p2 = gmsh.model.geo.addPoint(0, self.height, 0, self.mesh_resolution)
-        p3 = gmsh.model.geo.addPoint(self.length/4, self.height, 0, self.mesh_resolution/self.mesh_refinement_factor) # refined at flame
-        p4 = gmsh.model.geo.addPoint(self.length, self.height, 0, self.mesh_resolution)
-        p5 = gmsh.model.geo.addPoint(self.length, 0, 0, self.mesh_resolution)
-        p6 = gmsh.model.geo.addPoint(self.length/4, 0, 0, self.mesh_resolution/self.mesh_refinement_factor) # refined at flame
+        p3 = gmsh.model.geo.addPoint(self.chamber_length/4, self.height, 0, self.mesh_resolution/self.mesh_refinement_factor) # refined at flame
+        p4 = gmsh.model.geo.addPoint(self.chamber_length, self.height, 0, self.mesh_resolution)
+        p5 = gmsh.model.geo.addPoint(self.chamber_length, 0, 0, self.mesh_resolution)
+        p6 = gmsh.model.geo.addPoint(self.chamber_length/4, 0, 0, self.mesh_resolution/self.mesh_refinement_factor) # refined at flame
         # create outlines by connecting points
         l1 = gmsh.model.geo.addLine(p1, p2) # inlet boundary
         l2 = gmsh.model.geo.addLine(p2, p3) # upper wall
@@ -337,7 +337,7 @@ class TestCase:
             # perturb the chosen mesh points slightly in x direction
             for i, x in enumerate(xcoords):
                 if x > 0.3: # only perturb parts of mesh that lie behind the flame located at 0.25m
-                    xcoords[i] += (x - 0.3)/(self.length - 0.3) * self.perturbation
+                    xcoords[i] += (x - 0.3)/(self.chamber_length - 0.3) * self.perturbation
         elif pert_method == "inside": # perturbation only inside the mesh, not the border
             logging.info("- perturbation method: inside")
             # perturb the chosen mesh points only inside the mesh domain, not modifying the borders
@@ -367,8 +367,8 @@ class TestCase:
             gmsh.model.mesh.setNode(tag, new_coords, [])
         # update point positions
         if pert_method == "linear": # standard
-            gmsh.model.setCoordinates(self.p3, self.perturbation + self.length, self.height, 0)
-            gmsh.model.setCoordinates(self.p4, self.perturbation + self.length, 0, 0)
+            gmsh.model.setCoordinates(self.p3, self.perturbation + self.chamber_length, self.height, 0)
+            gmsh.model.setCoordinates(self.p4, self.perturbation + self.chamber_length, 0, 0)
         # optionally launch GUI to see the results
         # if '-nopopup' not in sys.argv:
         #   gmsh.fltk.run()
@@ -430,7 +430,7 @@ class TestCase:
         else:
             stability = 'stable'
         logging.info(f"---> \033[1mMesh Resolution =\033[0m {self.mesh_resolution}")
-        logging.info(f"---> \033[1mDimensions =\033[0m {self.plenum_length}m, {self.height} m")
+        logging.info(f"---> \033[1mDimensions =\033[0m {self.chamber_length}m, {self.height} m")
         logging.info(f"---> \033[1mPolynomial Degree of FEM =\033[0m {self.degree}")
         logging.info(f"---> \033[1mPerturbation Distance =\033[0m {self.perturbation} m")
         logging.info(f"---> \033[1mTarget =\033[0m {self.target} Hz ")

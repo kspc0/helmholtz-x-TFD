@@ -5,7 +5,10 @@ import os
 # mesh parameters 
 mesh_resolution = 0.008 # specify mesh resolution (standard 0.008)
 mesh_refinement_factor = 1 # specify mesh refinement factor
-length = 1 # [m] length of the tube
+
+chamber_length = 1 # [m] length of the tube
+plenum_length = None
+slit = None
 height = 0.047 # [m] height of the tube
 
 # eigenvalue problem parameters
