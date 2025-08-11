@@ -32,14 +32,14 @@ for perturbation in perturbations:
     KornilovCase.perturb_kornilov_mesh("x")
     KornilovCase.calculate_discrete_derivative()
     # save the calculated shape derivative
-    discrete_shape_derivatives.append(KornilovCase.derivative/-2/np.pi*KornilovCase.perturbation)
+    discrete_shape_derivatives.append(KornilovCase.derivative/2/np.pi*KornilovCase.perturbation)
 gmsh.finalize() # close the gmsh session
 
 # extract the discrete shape derivatives as complex numbers
 real_discrete_shape_derivatives = [derivative.real for derivative in discrete_shape_derivatives]
 imag_discrete_shape_derivatives = [derivative.imag for derivative in discrete_shape_derivatives]
 # Save the real and imaginary derivatives along with the perturbations to a text file
-output_file = os.path.join(path, 'data_fig12.txt')
+output_file = os.path.join(path, 'data_fig8.txt')
 with open(output_file, 'w') as f:
     f.write("Perturbation [m], delta omega Real Part [Hz/m], delta omega Imaginary Part [Hz/m] \n")
     for p, real, imag in zip(perturbations, real_discrete_shape_derivatives, imag_discrete_shape_derivatives):

@@ -435,7 +435,7 @@ class TestCase:
         logging.info(f"---> \033[1mPerturbation Distance =\033[0m {self.perturbation} m")
         logging.info(f"---> \033[1mTarget =\033[0m {self.target} Hz ")
         logging.info(f"---> \033[1mOmega =\033[0m {self.omega_dir.real} + {self.omega_dir.imag}j ({stability})")
-        logging.info(f"---> \033[1m(Physical Frequency) =\033[0m {self.omega_dir.real/2/np.pi} Hz") # needs negative sign to fit the physical frequency
+        logging.info(f"---> \033[1m(Physical Frequency) =\033[0m {self.omega_dir.real/2/np.pi} Hz")
         logging.info(f"---> \033[1m(Physical Growth Rate) =\033[0m {self.omega_dir.imag/2/np.pi} 1/s")
         #logging.info(f"---> \033[1mEigenfrequency =\033[0m {round(self.omega_dir.real/2/np.pi,4)} + {round(self.omega_dir.imag/2/np.pi,4)}j Hz ({stability})")
         logging.info(f"---> \033[1m{self.type.capitalize()} Shape Derivative =\033[0m {round(self.derivative.real/2/np.pi,8)} + {round(self.derivative.imag/2/np.pi,8)}j")
