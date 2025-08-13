@@ -283,12 +283,19 @@ class TestCase:
             ycoords[plenum_node_indices] += ycoords[plenum_node_indices] / self.height * self.perturbation
             # update node y coordinates in mesh from the perturbed points and the unperturbed original points
             perturbed_node_coordinates[1::3] = ycoords
-        elif pert_method == "x": # change in inlet direction
+        elif pert_method == "x": # elongate outlet
             logging.info("- perturbation method: x-direction")
             for i in range(len(xcoords)):
                 if xcoords[i] > 0.09: # not plenum! instead part of combustion chamber
                     plenum_node_indices.append(i)
             xcoords[plenum_node_indices] += self.perturbation*(xcoords[plenum_node_indices]-0.09)/(0.13)
+            perturbed_node_coordinates[0::3] = xcoords
+        elif pert_method == "x_full_chamber": # elongate outlet and flame region
+            logging.info("- perturbation method: x-direction full chamber including flame region")
+            for i in range(len(xcoords)):
+                if xcoords[i] > 0.08:
+                    plenum_node_indices.append(i)
+            xcoords[plenum_node_indices] += self.perturbation*(xcoords[plenum_node_indices]-0.08)/(0.14)
             perturbed_node_coordinates[0::3] = xcoords
         else:
             logging.error("Warning: unknown perturbation method")
@@ -299,7 +306,7 @@ class TestCase:
         if pert_method == "y": 
             gmsh.model.setCoordinates(self.p2, 0, self.perturbation + self.height, 0)
             gmsh.model.setCoordinates(self.p3, self.plenum_length, self.perturbation + self.height, 0)
-        elif pert_method == "x":
+        elif pert_method == "x" or pert_method == "x_full_chamber":
             total_length = self.plenum_length + self.chamber_length + self.slit
             gmsh.model.setCoordinates(self.p7, total_length+self.perturbation, self.height, 0)
             gmsh.model.setCoordinates(self.p8, total_length+self.perturbation, 0, 0)
