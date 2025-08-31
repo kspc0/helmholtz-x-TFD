@@ -81,8 +81,8 @@ class TestCase:
         p4 = gmsh.model.geo.addPoint(plenum_length, slit_height, 0, self.mesh_resolution/self.mesh_refinement_factor)
         p5 = gmsh.model.geo.addPoint(plenum_length + slit_length, slit_height, 0, self.mesh_resolution/self.mesh_refinement_factor)
         p6 = gmsh.model.geo.addPoint(plenum_length + slit_length, combustion_chamber_height, 0, self.mesh_resolution)
-        p7 = gmsh.model.geo.addPoint(plenum_length + slit_length + chamber_length, combustion_chamber_height, 0, self.mesh_resolution)
-        p8 = gmsh.model.geo.addPoint(plenum_length + slit_length + chamber_length, 0, 0, self.mesh_resolution)
+        p7 = gmsh.model.geo.addPoint(plenum_length + chamber_length, combustion_chamber_height, 0, self.mesh_resolution)
+        p8 = gmsh.model.geo.addPoint(plenum_length + chamber_length, 0, 0, self.mesh_resolution)
         # p1 = gmsh.model.geo.addPoint(-self.length-self.slit, 0, 0, self.mesh_resolution)  
         # p2 = gmsh.model.geo.addPoint(-self.length-self.slit, self.height, 0, self.mesh_resolution)
         # p3 = gmsh.model.geo.addPoint(-self.slit, self.height, 0, self.mesh_resolution)
@@ -307,7 +307,7 @@ class TestCase:
             gmsh.model.setCoordinates(self.p2, 0, self.perturbation + self.height, 0)
             gmsh.model.setCoordinates(self.p3, self.plenum_length, self.perturbation + self.height, 0)
         elif pert_method == "x" or pert_method == "x_full_chamber":
-            total_length = self.plenum_length + self.chamber_length + self.slit
+            total_length = self.plenum_length + self.chamber_length
             gmsh.model.setCoordinates(self.p7, total_length+self.perturbation, self.height, 0)
             gmsh.model.setCoordinates(self.p8, total_length+self.perturbation, 0, 0)
         # optionally launch GUI to see the results
